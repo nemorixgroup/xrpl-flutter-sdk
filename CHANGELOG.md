@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## 0.0.2-dev
+
+Phase 1 in progress: XRPL base58 codec implemented and verified,
+including checksum-based corruption detection.
+
+### Added
+
+- `XrplBase58.encodeRaw(Uint8List)`: encodes raw bytes into an XRPL
+  base58 string using the ledger's own alphabet (distinct from
+  Bitcoin's), preserving leading zero bytes correctly
+- `XrplBase58.decodeRaw(String)`: exact inverse of `encodeRaw`,
+  rejects any character outside the XRPL alphabet
+- `XrplBase58.checksumOf(Uint8List)`: computes the 4-byte
+  double-SHA256 checksum (`Base58Check` style) used by XRPL seeds
+  and addresses, via `pointycastle`'s `SHA256Digest`
+- `XrplBase58.encodeWithChecksum(Uint8List)`: encodes data with the
+  checksum appended
+- `XrplBase58.decodeWithChecksum(String)`: decodes and verifies the
+  embedded checksum, throwing `XrplCryptoException` on a mismatch,
+  on invalid characters, or on data too short to contain a checksum
+- 43 unit tests total (up from 10), including:
+  - round-trip tests between `encodeRaw`/`decodeRaw` across multiple
+    byte patterns (including leading zeros)
+  - a checksum test vector computed independently via Python's
+    `hashlib`, not just structural assertions
+  - a real mistyped-character scenario proving `decodeWithChecksum`
+    catches corrupted input instead of silently returning bad data
+
+### Changed
+
+- `lib/xrpl_flutter_sdk.dart`: exported `XrplBase58` now that its
+  public API (encode/decode, with and without checksum) is complete
+
+### Design Decisions
+
+- Split raw conversion (`encodeRaw`/`decodeRaw`) from checksummed
+  conversion (`encodeWithChecksum`/`decodeWithChecksum`) instead of
+  a single function, since not everything encoded in XRPL base58
+  carries a checksum, and the checksummed versions are built on top
+  of the raw ones rather than duplicating the conversion logic
+- `decodeWithChecksum` verifies the checksum unconditionally; there
+  is no "skip verification" option, to prevent silently accepting
+  corrupted seeds or addresses
+
+### Status
+
+Phase 1 in progress: entropy generation and base58 codec complete
+and tested. No network interaction yet (that begins in Phase 3).  
+Not ready for production use.  
+Next: family seed encoding (`0.0.3-dev`), combining `XrplEntropy` and
+`XrplBase58`.
+
 ## 0.0.1-dev
 
 Phase 1 in progress: entropy generation implemented and verified

@@ -33,9 +33,13 @@ account security, all in one native Dart package.
 
 ## Documentation & Knowledge Base
 
-This SDK is built on top of the [XRPL Knowledge Base](https://github.com/nemorixgroup/XRPL-Knowledge-Base), in-depth guide to the XRP Ledger covering consensus,
+This SDK is built on top of the [XRPL Knowledge Base](https://github.com/nemorixgroup/XRPL-Knowledge-Base), an in-depth guide to the XRP Ledger covering consensus,
 architecture, native services, and the development ecosystem. Recommended
 reading before diving into the SDK internals.
+
+Every implementation decision behind this SDK - library choices,
+encoding standards, verification against official specs - is
+documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk).
 
 ## Installation
 
