@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:pointycastle/export.dart';
+
 /// Base58 encoding using the XRP Ledger's own alphabet.
 ///
 /// This is **not** the same alphabet Bitcoin uses. XRPL rearranges the
@@ -58,5 +60,40 @@ class XrplBase58 {
       buffer.write(alphabet[digit]);
     }
     return buffer.toString();
+  }
+
+  /// Encodes [bytes] into an XRPL base58 string with a 4-byte checksum
+  /// appended, matching how XRPL seeds and addresses are encoded.
+  ///
+  /// The checksum is the first 4 bytes of the double SHA-256 hash of
+  /// [bytes] (`SHA256(SHA256(bytes))`), the same scheme Bitcoin's
+  /// `Base58Check` uses. It lets consumers detect a mistyped or
+  /// corrupted string before attempting to use it, rather than
+  /// silently accepting bad data.
+  ///
+  /// Example:
+  /// ```dart
+  /// final encoded = XrplBase58.encodeWithChecksum(
+  ///   Uint8List.fromList([0x21, 1, 2, 3]),
+  /// );
+  /// ```
+  static String encodeWithChecksum(Uint8List bytes) {
+    final checksum = checksumOf(bytes);
+    final withChecksum = Uint8List.fromList([...bytes, ...checksum]);
+    return encodeRaw(withChecksum);
+  }
+
+  /// Computes the 4-byte XRPL/Bitcoin-style checksum for [bytes]:
+  /// the first 4 bytes of `SHA256(SHA256(bytes))`.
+  ///
+  /// Exposed separately from [encodeWithChecksum] so it can be reused
+  /// later (for example, to verify a checksum during decoding) without
+  /// duplicating the hashing logic.
+  static Uint8List checksumOf(Uint8List bytes) {
+    final digest = SHA256Digest();
+    final firstHash = digest.process(bytes);
+    digest.reset();
+    final secondHash = digest.process(firstHash);
+    return secondHash.sublist(0, 4);
   }
 }
