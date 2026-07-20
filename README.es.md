@@ -37,12 +37,14 @@ Este SDK esta construido sobre la [XRPL Knowledge Base](https://github.com/nemor
 arquitectura, servicios nativos y el ecosistema de desarrollo. Lectura
 recomendada antes de entrar a los detalles internos del SDK.
 
+Cada decisión de implementación detrás de este SDK, incluyendo la elección de bibliotecas, los estándares de codificación y la verificación con respecto a las especificaciones oficiales, está documentada en [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk).
+
 ## Instalacion
 
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.0.1-dev
+  xrpl_flutter_sdk: ^0.0.3-dev
 ```
 
 ```bash
@@ -51,9 +53,25 @@ flutter pub get
 
 ## Inicio rapido
 
-> La API publica se esta construyendo de forma incremental. Esta
-> seccion se actualizara conforme cada fase se complete. Ver la tabla
-> de Roadmap arriba para el estado actual.
+```dart
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
+
+// Genera un nuevo seed. El algoritmo siempre es explicito, nunca se
+// infiere, porque el mismo seed produce un par de claves (y una
+// direccion) distinta segun el algoritmo usado.
+final seed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.ed25519);
+print(seed.toBase58()); // ej. "sEdT..."
+
+// Restaura un seed desde un string guardado. El checksum se verifica
+// automaticamente; un seed mal escrito o corrupto lanza
+// XrplCryptoException en vez de producir datos incorrectos en silencio.
+final restored = XrplSeed.fromBase58(seed.toBase58());
+print(restored.declaredAlgorithm); // XrplKeyAlgorithm.ed25519
+```
+
+> La derivacion de pares de claves (secp256k1/Ed25519) y la generacion
+> de direcciones llegan en los proximos releases. Ver la tabla de
+> Roadmap arriba para el estado actual.  
 
 ## Redes
 
