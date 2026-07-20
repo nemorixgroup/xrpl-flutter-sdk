@@ -46,7 +46,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.0.1-dev
+  xrpl_flutter_sdk: ^0.0.3-dev
 ```
 
 ```bash
@@ -55,9 +55,25 @@ flutter pub get
 
 ## Quick Start
 
-> The public API is being built incrementally. This section will be
-> updated as each phase lands. See the Roadmap table above for current
-> status.
+```dart
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
+
+// Generate a new seed. The algorithm is always explicit - never
+// inferred - because the same seed produces a different key pair
+// (and a different address) depending on the algorithm used.
+final seed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.ed25519);
+print(seed.toBase58()); // e.g. "sEdT..."
+
+// Restore a seed from a saved string. The checksum is verified
+// automatically; a mistyped or corrupted seed throws
+// XrplCryptoException instead of silently producing wrong data.
+final restored = XrplSeed.fromBase58(seed.toBase58());
+print(restored.declaredAlgorithm); // XrplKeyAlgorithm.ed25519
+```
+
+> Key pair derivation (secp256k1/Ed25519) and address generation are
+> coming in the next releases. See the Roadmap table above for
+> current status.  
 
 ## Networks
 
