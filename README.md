@@ -71,9 +71,22 @@ final restored = XrplSeed.fromBase58(seed.toBase58());
 print(restored.declaredAlgorithm); // XrplKeyAlgorithm.ed25519
 ```
 
-> Key pair derivation (secp256k1/Ed25519) and address generation are
-> coming in the next releases. See the Roadmap table above for
-> current status.  
+```dart
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
+
+// secp256k1: synchronous key derivation.
+final secpSeed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.secp256k1);
+final secpKeys = XrplSecp256k1.deriveKeyPair(secpSeed.entropy);
+print(secpKeys.compressedPublicKey); // 33 bytes
+
+// Ed25519: asynchronous key derivation (see docs-sdk/ for why).
+final edSeed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.ed25519);
+final edKeys = await XrplEd25519.deriveKeyPair(edSeed.entropy);
+print(edKeys.prefixedPublicKey); // 33 bytes, 0xED-prefixed
+```
+
+> Address generation and network connectivity are coming in the next
+> releases. See the Roadmap table above for current status.
 
 ## Networks
 

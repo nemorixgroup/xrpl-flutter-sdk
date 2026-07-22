@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.0.4-dev
+
+Phase 1 in progress: key pair derivation for both secp256k1 and
+Ed25519, the last cryptographic building block before XrplWallet.
+
+### Added
+
+- `XrplHash.sha512Half`: shared SHA-512Half hashing utility used
+  throughout key derivation
+- `XrplSecp256k1`: full official algorithm - `deriveRootKeyPair`,
+  `deriveIntermediateKeyPair`, and `deriveKeyPair` (the combined
+  master key pair), using `pointycastle`'s `ECDomainParameters`
+- `XrplEd25519`: `deriveKeyPair`, using `package:cryptography`
+- 17 new unit tests (64 -> 81). Every derivation step is checked
+  against a real vector independently computed via Python
+  (`hashlib`, the `ecdsa` library, and `pynacl`/libsodium), not just
+  our own round-trip tests
+
+### Changed
+
+- Added a private constructor to `XrplBase58` to prevent
+  instantiation of a static-only class, resolving the last `pana`
+  documentation hint from a previous release
+
+### Design Decisions
+
+- `XrplSecp256k1` stays synchronous (`pointycastle`); `XrplEd25519`
+  is asynchronous (`package:cryptography`). This isn't a style
+  choice - `package:cryptography` does not support secp256k1 at all
+  (only Ed25519, X25519, and NIST curves P-256/P-384/P-521), so the
+  two algorithms cannot share one library here
+- Chose `package:cryptography` (actively maintained) over
+  `ed25519_edwards` (synchronous, but unmaintained for ~4 years) or
+  `edwards25519` (maintained, but a low-level curve library that
+  would require implementing key derivation from scratch on top of
+  it) - correctness and maintenance outweighed API symmetry
+- `XrplWallet` (`0.0.5-dev`) will expose a single, uniformly
+  asynchronous public API regardless of algorithm, wrapping
+  secp256k1's already-synchronous path rather than reimplementing it
+
+### Status
+
+Phase 1 in progress: entropy, base58 codec, family seed encoding, and
+full key pair derivation (both algorithms) complete and tested
+against official/independent vectors.  
+No network interaction yet (that begins in Phase 3).  
+Not ready for production use.  
+Next: `XrplWallet`, the unified public API (`0.0.5-dev`).
+
 ## 0.0.3-dev
 
 Phase 1 in progress: family seed encoding implemented, combining
