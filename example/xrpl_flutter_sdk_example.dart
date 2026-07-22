@@ -26,10 +26,12 @@
 //   Phase 8 - Account Security & Compliance (multi-sign, Tickets, Credentials)
 
 import 'phase1/base58_codec_example.dart';
+import 'phase1/ed25519_example.dart';
 import 'phase1/entropy_example.dart';
 import 'phase1/family_seed_example.dart';
+import 'phase1/secp256k1_example.dart';
 
-void main() {
+Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
   // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-1
 
@@ -41,4 +43,10 @@ void main() {
 
   print('\n--- 0.0.3-dev: Family seed encoding ---');
   familySeedEncodingExample();
+
+  print('\n--- 0.0.4-dev: secp256k1 key derivation ---');
+  secp256k1KeyDerivationExample();
+
+  print('\n--- 0.0.4-dev: Ed25519 key derivation ---');
+  await ed25519KeyDerivationExample();
 }

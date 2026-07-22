@@ -44,7 +44,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.0.3-dev
+  xrpl_flutter_sdk: ^0.0.4-dev
 ```
 
 ```bash
@@ -69,9 +69,23 @@ final restored = XrplSeed.fromBase58(seed.toBase58());
 print(restored.declaredAlgorithm); // XrplKeyAlgorithm.ed25519
 ```
 
-> La derivacion de pares de claves (secp256k1/Ed25519) y la generacion
-> de direcciones llegan en los proximos releases. Ver la tabla de
-> Roadmap arriba para el estado actual.  
+```dart
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
+
+// secp256k1: derivacion de claves sincrona.
+final secpSeed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.secp256k1);
+final secpKeys = XrplSecp256k1.deriveKeyPair(secpSeed.entropy);
+print(secpKeys.compressedPublicKey); // 33 bytes
+
+// Ed25519: derivacion de claves asincrona (ver docs-sdk/ para el porque).
+final edSeed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.ed25519);
+final edKeys = await XrplEd25519.deriveKeyPair(edSeed.entropy);
+print(edKeys.prefixedPublicKey); // 33 bytes, con prefijo 0xED
+```
+
+> Generacion de direcciones y conectividad de red llegan en los
+> proximos releases. Ver la tabla de Roadmap arriba para el estado
+> actual. 
 
 ## Redes
 
