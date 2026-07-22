@@ -46,7 +46,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.0.3-dev
+  xrpl_flutter_sdk: ^0.0.4-dev
 ```
 
 ```bash
