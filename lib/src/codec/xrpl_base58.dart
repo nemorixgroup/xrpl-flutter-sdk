@@ -20,6 +20,7 @@ class XrplBase58 {
   static const String alphabet =
       'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz';
 
+  /// The XRPL base58 alphabet (58 characters, no `0`, `O`, `I`, or `l`).
   static final BigInt _base = BigInt.from(58);
 
   /// Encodes raw [bytes] into an XRPL base58 string, with no checksum.
