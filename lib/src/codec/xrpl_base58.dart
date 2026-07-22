@@ -16,6 +16,9 @@ import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 /// higher-level types like seeds and addresses, since not everything
 /// encoded in base58 needs one.
 class XrplBase58 {
+  /// Private constructor
+  const XrplBase58._();
+
   /// The XRPL base58 alphabet (58 characters, no `0`, `O`, `I`, or `l`).
   static const String alphabet =
       'rpshnaf39wBUDNEGHJKLM4PQRST7VWXYZ2bcdeCg65jkm8oFqi1tuvAxyz';

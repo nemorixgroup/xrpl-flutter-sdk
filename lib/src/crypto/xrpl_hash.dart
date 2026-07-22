@@ -12,7 +12,7 @@ class XrplHash {
   /// This is the hash function XRPL uses throughout key derivation
   /// (for both the secp256k1 root/intermediate key pair steps and the
   /// Ed25519 secret key) instead of plain SHA-256, per the official
-  /// specification: "the [SHA-512Half] of the seed value... the
+  /// specification: "the SHA-512Half of the seed value... the
   /// result is the 32-byte secret key."
   ///
   /// Example:
