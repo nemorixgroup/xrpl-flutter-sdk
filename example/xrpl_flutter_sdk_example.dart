@@ -30,6 +30,7 @@ import 'phase1/ed25519_example.dart';
 import 'phase1/entropy_example.dart';
 import 'phase1/family_seed_example.dart';
 import 'phase1/secp256k1_example.dart';
+import 'phase1/wallet_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -49,4 +50,7 @@ Future<void> main() async {
 
   print('\n--- 0.0.4-dev: Ed25519 key derivation ---');
   await ed25519KeyDerivationExample();
+
+  print('\n--- 0.0.5-dev: XRPL Wallet ---');
+  await walletExample();
 }

@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.0.5-dev
+
+Phase 1 in progress: XrplWallet, the unified public API tying
+together seed generation and key derivation for both algorithms.
+
+### Added
+
+- `XrplWallet`, in a new `lib/src/wallet/` folder (sibling to
+  `crypto/`, `codec/`, `exceptions/` - not nested under `crypto/`,
+  since a wallet is the layer that combines those, not a
+  cryptographic primitive itself):
+  - `XrplWallet.generate({required algorithm})`
+  - `XrplWallet.fromSeed(value, {required algorithm})`
+  - `publicKeyBytes` / `privateKeyBytes`: always plain `Uint8List`
+    regardless of algorithm (33 and 32 bytes respectively), even
+    though `secp256k1` and `Ed25519` use different underlying private
+    key types (`BigInt` vs `Uint8List`) internally
+- Algorithm-mismatch protection in `fromSeed()`: an `sEd`-declared
+  (Ed25519) seed used with a mismatched requested algorithm throws
+  `XrplCryptoException` instead of silently deriving the wrong key
+  pair - the validation this SDK left as a known gap since
+  `0.0.3-dev` is now closed
+- 14 new unit tests (81 -> 90), including two full, real vectors
+  chained end-to-end through `XrplWallet` (not just its building
+  blocks): the same official secp256k1 seed
+  (`sn259rEFXrQrWyx3Q7XneWcwV6dfL`) and Ed25519 seed
+  (`sEdTM1uX8pu2do5XvTnutH6HsouMaM2`) already verified in earlier
+  sub-versions
+
+### Design Decisions
+
+- Public and private keys are exposed only as unified `Uint8List`
+  bytes - the SDK deliberately does not also expose each algorithm's
+  original type (`BigInt` for secp256k1) alongside the unified bytes.
+  If a concrete need for that surfaces later, it will be added then,
+  with real context, rather than speculatively now
+- `XrplWallet`'s public API is uniformly asynchronous
+  (`Future<XrplWallet>`) regardless of algorithm, even though
+  secp256k1 derivation is actually synchronous internally - this
+  hides the sync/async split between `XrplSecp256k1` and
+  `XrplEd25519` (documented in
+  `docs-sdk/phase-1/key-derivation/`) behind one consistent API
+
+### Status
+
+Phase 1 in progress: entropy, base58 codec, family seed encoding, key
+derivation (both algorithms), and the unified `XrplWallet` API
+complete and tested.  
+No network interaction yet (that begins in Phase 3).  
+Not ready for production use.  
+Next: error handling and validation review (`0.0.6-dev`).  
+
 ## 0.0.4-dev
 
 Phase 1 in progress: key pair derivation for both secp256k1 and
