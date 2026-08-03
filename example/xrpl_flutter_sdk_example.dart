@@ -16,8 +16,8 @@
 // https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main/example/xrpl_flutter_sdk_example.dart
 //
 // Planned phases:
-//   Phase 1 - Cryptographic Fundamentals (seeds, secp256k1, Ed25519)
-//   Phase 2 - Addresses (classic address, X-address, base58 XRPL codec)
+//   Phase 1 - Cryptographic Fundamentals (seeds, secp256k1, Ed25519) - DONE
+//   Phase 2 - Addresses (classic address, X-address, base58 XRPL codec) - CURRENT
 //   Phase 3 - Connection Layer (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet)
 //   Phase 4 - Core Transactions (Payment, TrustSet, sign, submit)
 //   Phase 5 - DEX & Cross-Currency (OfferCreate, AMM, path finding)
