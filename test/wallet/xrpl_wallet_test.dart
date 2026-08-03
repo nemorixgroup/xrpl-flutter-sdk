@@ -74,6 +74,16 @@ void main() {
   });
 
   group('XrplWallet.fromSeed algorithm mismatch protection', () {
+    test('propagates XrplCryptoException for a corrupted/invalid seed',
+        () async {
+      expect(
+        () => XrplWallet.fromSeed(
+          'this-is-not-a-valid-seed',
+          algorithm: XrplKeyAlgorithm.secp256k1,
+        ),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
     test(
         'throws when an sEd-declared (ed25519) seed is used with '
         'secp256k1', () async {

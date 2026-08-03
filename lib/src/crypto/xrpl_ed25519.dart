@@ -44,8 +44,8 @@ class XrplEd25519KeyPair {
 /// long-unmaintained alternative - correctness and maintenance matter
 /// more here than API symmetry with [XrplSecp256k1]. This makes
 /// [deriveKeyPair] asynchronous, unlike secp256k1's derivation
-/// methods; `XrplWallet` (0.0.5-dev) will expose a single, uniformly
-/// asynchronous public API to hide this difference from SDK users.
+/// methods; `XrplWallet` exposes a single, uniformly asynchronous public
+/// API to hide this difference from SDK users.
 class XrplEd25519 {
   const XrplEd25519._();
 

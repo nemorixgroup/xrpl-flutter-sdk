@@ -2,7 +2,8 @@
 [![Dart](https://img.shields.io/badge/Dart-3.x-teal.svg)](https://dart.dev)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev)
 [![CI](https://github.com/nemorixgroup/xrpl-flutter-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/actions)
-[![Status](https://img.shields.io/badge/Status-Fase%201%20En%20Progreso-red.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)  
+[![Status](https://img.shields.io/badge/Status-Fase%201%20Completa-brightgreen.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)
+[![Status](https://img.shields.io/badge/Status-Fase%202%20En%20Progreso-red.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)  
 
 [English](README.md) | **Español**  
 
@@ -12,7 +13,7 @@ El primer SDK nativo de Flutter/Dart para el XRP Ledger (XRPL).
 Pure Dart · Sin platform channels · Apache 2.0 · pub.dev  
 
 > **Estado: Desarrollo Temprano** - la API aun no es estable.
-> Fase actual: Fase 1 - Fundamentos Criptograficos.
+> Fase 1 (Fundamentos Criptograficos) completada. Fase 2 (Direcciones) arranca a continuacion.
 
 Diseñado para ser un **SDK de XRPL abierto y de proposito general**:
 pagos, DEX, tokenizacion (NFTs, MPT), escrows, canales de pago, checks
@@ -22,8 +23,8 @@ y seguridad de cuenta, todo en un paquete Dart nativo.
 
 | Fase | Foco | Version | Estado |
 |------|------|---------|--------|
-| 1 | Fundamentos criptograficos (seeds, secp256k1, Ed25519) | `0.1.0-dev` | 🔄 En progreso |
-| 2 | Direcciones (classic address, X-address, codec base58 XRPL) | `0.2.0-dev` | ⏳ Planificado |
+| 1 | Fundamentos criptograficos (seeds, secp256k1, Ed25519) | `0.1.0-dev` | ✅ Completado |
+| 2 | Direcciones (classic address, X-address, codec base58 XRPL) | `0.2.0-dev` | 🔄 En progreso |
 | 3 | Capa de conexion (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) | `0.3.0-dev` | ⏳ Planificado |
 | 4 | Transacciones core (Payment, TrustSet, sign, submit) | `0.4.0-dev` | ⏳ Planificado |
 | 5 | DEX y cross-currency (OfferCreate, AMM, path finding) | `0.5.0-dev` | ⏳ Planificado |
@@ -44,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.0.4-dev
+  xrpl_flutter_sdk: ^0.1.0-dev
 ```
 
 ```bash

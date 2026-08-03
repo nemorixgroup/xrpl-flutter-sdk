@@ -2,7 +2,8 @@
 [![Dart](https://img.shields.io/badge/Dart-3.x-teal.svg)](https://dart.dev)
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev)
 [![CI](https://github.com/nemorixgroup/xrpl-flutter-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/actions)
-[![Status](https://img.shields.io/badge/Status-Phase%201%20In%20Progress-red.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)  
+[![Status](https://img.shields.io/badge/Status-Phase%201%20Complete-brightgreen.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)
+[![Status](https://img.shields.io/badge/Status-Phase%202%20In%20Progress-red.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)  
 
 **English** | [Español](README.es.md)  
 
@@ -12,7 +13,7 @@ The first native Flutter/Dart SDK for the XRP Ledger (XRPL).
 Pure Dart · No platform channels · Apache 2.0 · pub.dev  
 
 > **Status: Early Development** - API is not stable.
-> Current phase: Phase 1 - Cryptographic Fundamentals.
+> Phase 1 (Cryptographic Fundamentals) completed. Phase 2 (Addresses) starting next.
 
 Built to be an **open, general-purpose XRPL SDK**: payments, DEX,
 tokenization (NFTs, MPT), escrows, payment channels, checks, and
@@ -22,8 +23,8 @@ account security, all in one native Dart package.
 
 | Phase | Focus | Version | Status |
 |-------|-------|---------|--------|
-| 1 | Cryptographic fundamentals (seeds, secp256k1, Ed25519) | `0.1.0-dev` | 🔄 In progress |
-| 2 | Addresses (classic address, X-address, base58 XRPL codec) | `0.2.0-dev` | ⏳ Planned |
+| 1 | Cryptographic fundamentals (seeds, secp256k1, Ed25519) | `0.1.0-dev` | ✅ Done |
+| 2 | Addresses (classic address, X-address, base58 XRPL codec) | `0.2.0-dev` | 🔄 In progress |
 | 3 | Connection layer (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) | `0.3.0-dev` | ⏳ Planned |
 | 4 | Core transactions (Payment, TrustSet, sign, submit) | `0.4.0-dev` | ⏳ Planned |
 | 5 | DEX & cross-currency (OfferCreate, AMM, path finding) | `0.5.0-dev` | ⏳ Planned |
@@ -46,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.0.5-dev
+  xrpl_flutter_sdk: ^0.1.0-dev
 ```
 
 ```bash
