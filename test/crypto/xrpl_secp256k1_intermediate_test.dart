@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_entropy.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_secp256k1.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 
 Uint8List _hexToBytes(String hex) {
   final result = Uint8List(hex.length ~/ 2);
@@ -24,6 +25,16 @@ Uint8List _bigIntToBytes(BigInt value, int length) {
 
 void main() {
   group('XrplSecp256k1.deriveIntermediateKeyPair', () {
+    test('throws when rootPublicKey is not exactly 33 bytes', () {
+      expect(
+        () => XrplSecp256k1.deriveIntermediateKeyPair(Uint8List(10)),
+        throwsA(isA<XrplCryptoException>()),
+      );
+      expect(
+        () => XrplSecp256k1.deriveIntermediateKeyPair(Uint8List(40)),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
     test('produces a 32-byte private key and 33-byte compressed public key',
         () {
       final rootPublicKey = Uint8List(33)..[0] = 0x02;

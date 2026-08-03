@@ -130,6 +130,14 @@ void main() {
   });
 
   group('XrplSeed.fromBase58 error handling', () {
+    test('propagates an invalid-character error from XrplBase58.decodeRaw', () {
+      // '0' (zero) is intentionally excluded from the XRPL alphabet,
+      // same invalid character already used to test decodeRaw directly.
+      expect(
+        () => XrplSeed.fromBase58('s0notavalidseed'),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
     test('throws on a checksum mismatch', () {
       // Known-good Ed25519 vector with the last character altered.
       const corrupted = 'sEdSJHS4oiAdz7w2X2ni1gFiqtbJHqF';
