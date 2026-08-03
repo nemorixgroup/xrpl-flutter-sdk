@@ -4,6 +4,7 @@ import 'package:pointycastle/export.dart';
 
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_entropy.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_hash.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 
 /// A raw secp256k1 key pair: a private key scalar and its
 /// corresponding public key point on the curve.
@@ -11,7 +12,7 @@ import 'package:xrpl_flutter_sdk/src/crypto/xrpl_hash.dart';
 /// This is an internal building block. [XrplSecp256k1] combines two
 /// of these (a "root" and an "intermediate" pair) to produce the
 /// final account key pair - see the module-level documentation in
-/// `docs-sdk/phase-1/secp256k1-key-derivation/` for the full picture.
+/// `docs-sdk/phase-1/key-derivation/` for the full picture.
 class XrplSecp256k1KeyPair {
   /// Creates a key pair from an already-derived [privateKey] scalar
   /// and its corresponding [publicKey] point.
@@ -63,8 +64,7 @@ class XrplSecp256k1 {
   /// This is also the key pair XRPL validators use directly (their
   /// public keys use the `0x1c` base58 prefix, distinct from account
   /// keys) - accounts go one step further, combining this with an
-  /// "intermediate" key pair (not yet implemented in this
-  /// sub-version).
+  /// "intermediate" key pair - see [deriveKeyPair].
   ///
   /// Example:
   /// ```dart
@@ -92,8 +92,12 @@ class XrplSecp256k1 {
   /// This key pair is never used on its own - it's combined with the
   /// root key pair (via modular addition of the private keys, and
   /// elliptic-curve point addition of the public keys) to produce the
-  /// account's actual master key pair. That combination step is not
-  /// yet implemented in this sub-version.
+  /// account's actual master key pair - see [deriveKeyPair].
+  ///
+  /// Throws an [XrplCryptoException] if [rootPublicKey] is not
+  /// exactly 33 bytes (the compressed public key length), since a
+  /// key pair derived from the wrong input length would not match
+  /// what any other XRPL tool would produce from the same seed.
   ///
   /// Example:
   /// ```dart
@@ -105,6 +109,15 @@ class XrplSecp256k1 {
   static XrplSecp256k1KeyPair deriveIntermediateKeyPair(
     Uint8List rootPublicKey,
   ) {
+    const expectedLength = 33;
+    if (rootPublicKey.length != expectedLength) {
+      throw XrplCryptoException(
+        'rootPublicKey must be exactly $expectedLength bytes '
+        '(a compressed secp256k1 public key), got '
+        '${rootPublicKey.length}',
+      );
+    }
+
     final familyNumber = Uint8List(4); // always zero, per the spec
     final baseInput = Uint8List.fromList([
       ...rootPublicKey,
