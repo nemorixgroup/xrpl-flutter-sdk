@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.0-dev
+
+**Phase 1 complete.** This release consolidates the full first phase
+of the roadmap: cryptographic fundamentals, from raw entropy through
+a unified wallet API, closed with a full error-handling and test
+suite audit.
+
+### Added
+
+- `XrplSecp256k1.deriveIntermediateKeyPair`: validates that
+  `rootPublicKey` is exactly 33 bytes, throwing `XrplCryptoException`
+  otherwise (previously unvalidated on this public method)
+- 2 new tests confirming error propagation through previously
+  untested layers: `XrplWallet.fromSeed` with a corrupted seed, and
+  `XrplSeed.fromBase58` with an invalid base58 character (93 tests
+  total, up from 91)
+
+### Fixed
+
+- `XrplBase58._base`: corrected a doc comment copy-pasted from the
+  `alphabet` field above it
+- `XrplSecp256k1`: 2 doc comments describing the root/intermediate
+  combination as "not yet implemented" corrected to reference
+  `deriveKeyPair`, which already implements it
+- `XrplEd25519`: doc comment describing `XrplWallet`'s unified API as
+  a future plan ("will expose") corrected to present tense
+
+### Design Decisions
+
+- Audited every file in `lib/src/` against three questions: missing
+  edge cases, error message clarity, and documentation accuracy -
+  three files needed no changes, confirming validation was built
+  incrementally per sub-version rather than deferred to the end
+- While fixing a doc comment, a real dartdoc cross-reference briefly
+  introduced an import cycle between `xrpl_ed25519.dart` and
+  `xrpl_wallet.dart`. Reverted; documented as a standing rule:
+  `crypto/` and `codec/` never import from `wallet/`
+- This audit closes directly into `0.1.0-dev` rather than publishing
+  an intermediate `0.0.6-dev` first, since the code would have been
+  identical between the two releases
+
+### Phase 1 Summary
+
+- `XrplEntropy`, `XrplBase58`, `XrplSeed`, `XrplKeyAlgorithm`,
+  `XrplHash`, `XrplSecp256k1`, `XrplEd25519`, `XrplWallet`
+- 93 tests, verified against official specs and independently
+  computed vectors (Python `hashlib`, `ecdsa`, `pynacl`) throughout
+- No network interaction yet - that begins in Phase 2/3
+
+### Status
+
+**Phase 1 complete.** Not ready for production use.  
+Next: Phase 2 - Addresses (`0.1.1-dev`).
+
 ## 0.0.5-dev
 
 Phase 1 in progress: XrplWallet, the unified public API tying
