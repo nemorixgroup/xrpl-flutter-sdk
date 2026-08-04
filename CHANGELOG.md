@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.1-dev
+
+Phase 2 in progress: classic address derivation from a public key.
+
+### Added
+
+- `XrplClassicAddress.accountIdFromPublicKey(publicKey)`: derives the
+  20-byte Account ID via `RIPEMD160(SHA256(publicKey))`
+- `XrplClassicAddress.deriveFrom(publicKey)`: derives the full classic
+  address (`"r..."`), reusing `XrplBase58.encodeWithChecksum`
+- 9 new unit tests (93 -> 102), including the complete official
+  worked example published directly in `xrpl-dev-portal`
+  (`addresses.md`), independently re-verified via Python before use
+
+### Design Decisions
+
+- New `lib/src/address/` folder, sibling to `crypto/`, `codec/`,
+  `wallet/`, `exceptions/` - address derivation is its own concept
+  (all of Phase 2), not a cryptographic primitive, and will integrate
+  with `XrplWallet` in a later sub-version
+- Reuses `XrplBase58.encodeWithChecksum` rather than duplicating the
+  checksum/encoding logic - addresses and seeds share the same
+  Base58Check-style scheme, just a different type prefix (`0x00` vs
+  `0x21`/`0x01 0xE1 0x4B`)
+
+### Status
+
+Phase 2 in progress: classic address derivation complete and tested
+against an official worked example.  
+Next: X-Address (`0.1.2-dev`).
+
 ## 0.1.0-dev
 
 **Phase 1 complete.** This release consolidates the full first phase

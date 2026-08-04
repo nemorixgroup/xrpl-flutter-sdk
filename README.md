@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.1.0-dev
+  xrpl_flutter_sdk: ^0.1.1-dev
 ```
 
 ```bash
@@ -84,6 +84,16 @@ print(secpKeys.compressedPublicKey); // 33 bytes
 final edSeed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.ed25519);
 final edKeys = await XrplEd25519.deriveKeyPair(edSeed.entropy);
 print(edKeys.prefixedPublicKey); // 33 bytes, 0xED-prefixed
+```
+
+```dart
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
+
+// Classic address: derived from a public key, reusing the same
+// checksummed base58 encoding already used for seeds.
+final wallet = await XrplWallet.generate(algorithm: XrplKeyAlgorithm.ed25519);
+final address = XrplClassicAddress.deriveFrom(wallet.publicKeyBytes);
+print(address); // "r..."
 ```
 
 > Address generation and network connectivity are coming in the next

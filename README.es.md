@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.1.0-dev
+  xrpl_flutter_sdk: ^0.1.1-dev
 ```
 
 ```bash
@@ -82,6 +82,16 @@ print(secpKeys.compressedPublicKey); // 33 bytes
 final edSeed = XrplSeed.generate(algorithm: XrplKeyAlgorithm.ed25519);
 final edKeys = await XrplEd25519.deriveKeyPair(edSeed.entropy);
 print(edKeys.prefixedPublicKey); // 33 bytes, con prefijo 0xED
+```
+
+```dart
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
+
+// Direccion clasica: derivada de una clave publica, reutilizando el
+// mismo encoding base58 con checksum que ya usamos para los seeds.
+final wallet = await XrplWallet.generate(algorithm: XrplKeyAlgorithm.ed25519);
+final address = XrplClassicAddress.deriveFrom(wallet.publicKeyBytes);
+print(address); // "r..."
 ```
 
 > Generacion de direcciones y conectividad de red llegan en los

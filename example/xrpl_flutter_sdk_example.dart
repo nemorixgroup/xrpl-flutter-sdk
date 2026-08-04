@@ -31,6 +31,7 @@ import 'phase1/entropy_example.dart';
 import 'phase1/family_seed_example.dart';
 import 'phase1/secp256k1_example.dart';
 import 'phase1/wallet_example.dart';
+import 'phase2/classic_address_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -53,4 +54,10 @@ Future<void> main() async {
 
   print('\n--- 0.0.5-dev: XRPL Wallet ---');
   await walletExample();
+
+  // Phase 2 - Addresses
+  // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-2
+
+  print('\n--- 0.1.1-dev: Classic Address ---');
+  await classicAddressExample();
 }
