@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.1.1-dev
+  xrpl_flutter_sdk: ^0.1.2-dev
 ```
 
 ```bash
@@ -94,9 +94,16 @@ final address = XrplClassicAddress.deriveFrom(wallet.publicKeyBytes);
 print(address); // "r..."
 ```
 
-> Generacion de direcciones y conectividad de red llegan en los
-> proximos releases. Ver la tabla de Roadmap arriba para el estado
-> actual. 
+```dart
+// X-Address: empaqueta cuenta, red, y un destination tag opcional en
+// un solo string, para que el tag no se pueda olvidar por separado.
+final xAddress = XrplXAddress.deriveFrom(
+  wallet.publicKeyBytes,
+  network: XrplNetwork.mainnet,
+  tag: 12345,
+);
+print(xAddress); // "X..." (o "T..." para testnet)
+```
 
 ## Redes
 

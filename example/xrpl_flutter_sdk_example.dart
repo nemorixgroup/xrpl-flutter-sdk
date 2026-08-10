@@ -32,6 +32,7 @@ import 'phase1/family_seed_example.dart';
 import 'phase1/secp256k1_example.dart';
 import 'phase1/wallet_example.dart';
 import 'phase2/classic_address_example.dart';
+import 'phase2/x_address_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -60,4 +61,7 @@ Future<void> main() async {
 
   print('\n--- 0.1.1-dev: Classic Address ---');
   await classicAddressExample();
+
+  print('\n--- 0.1.2-dev: X-Address ---');
+  await xAddressExample();
 }
