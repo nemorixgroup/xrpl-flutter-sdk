@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.2-dev
+
+Phase 2 in progress: X-Address, encoding account, network, and an
+optional destination tag into a single address string.
+
+### Added
+
+- `XrplNetwork`: enum for Mainnet/Testnet, used to select the correct
+  X-Address prefix
+- `XrplXAddress.deriveFrom(publicKey, {required network, tag})`:
+  derives an X-Address ("X..." mainnet, "T..." testnet), reusing
+  `XrplClassicAddress.accountIdFromPublicKey` and
+  `XrplBase58.encodeWithChecksum`
+- Tag validation: rejects negative tags or tags above the 32-bit
+  maximum (`4294967295`) with `XrplCryptoException`
+- 11 new unit tests (102 -> 113), including 2 official test vectors
+  (mainnet with the maximum tag, testnet with a small tag) from the
+  original `ripple-address-codec` X-Address PR, independently
+  re-verified via Python before use
+
+### Fixed
+
+- A test-vector transcription error (reusing the wrong public key
+  from an unrelated official example) was caught by an unexpected
+  test failure, not by manual review - corrected by re-verifying
+  every vector independently in Python before finalizing the test
+  file, per this SDK's standing verification practice
+
+### Design Decisions
+
+- Discovered during research that the X-Address payload is 31 bytes
+  (2-byte network prefix + 20-byte Account ID + 1-byte flag + 4-byte
+  tag + 4 reserved bytes), not 30 as initially assumed - confirmed
+  against the official `ripple-address-codec` X-Address PR before
+  implementing
+- The destination tag is encoded little-endian, the only place in
+  this SDK where byte order is reversed from the big-endian
+  convention used everywhere else (seeds, keys)
+- `tag` is an optional parameter (`int?`), not a required one like
+  the signing algorithm elsewhere in the SDK - omitting a tag is a
+  valid, common state, unlike omitting the algorithm
+
+### Status
+
+Phase 2 in progress: classic address and X-Address derivation
+complete and tested against official vectors. No network interaction
+yet (that begins in Phase 3).  
+Not ready for production use.  
+Next: integrating addresses into `XrplWallet` (`0.1.3-dev`).
+
 ## 0.1.1-dev
 
 Phase 2 in progress: classic address derivation from a public key.

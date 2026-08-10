@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.1.1-dev
+  xrpl_flutter_sdk: ^0.1.2-dev
 ```
 
 ```bash
@@ -96,8 +96,16 @@ final address = XrplClassicAddress.deriveFrom(wallet.publicKeyBytes);
 print(address); // "r..."
 ```
 
-> Address generation and network connectivity are coming in the next
-> releases. See the Roadmap table above for current status.
+```dart
+// X-Address: packages account, network, and an optional destination
+// tag into one string, so the tag can't be forgotten separately.
+final xAddress = XrplXAddress.deriveFrom(
+  wallet.publicKeyBytes,
+  network: XrplNetwork.mainnet,
+  tag: 12345,
+);
+print(xAddress); // "X..." (or "T..." for testnet)
+```
 
 ## Networks
 
