@@ -22,3 +22,5 @@ export 'src/wallet/xrpl_wallet.dart';
 
 // Phase 2: Addresses.
 export 'src/address/xrpl_classic_address.dart';
+export 'src/address/xrpl_network.dart';
+export 'src/address/xrpl_x_address.dart';
