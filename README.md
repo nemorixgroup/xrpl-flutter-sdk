@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.1.2-dev
+  xrpl_flutter_sdk: ^0.1.3-dev
 ```
 
 ```bash
@@ -105,6 +105,13 @@ final xAddress = XrplXAddress.deriveFrom(
   tag: 12345,
 );
 print(xAddress); // "X..." (or "T..." for testnet)
+```
+
+```dart
+// XrplWallet exposes its address directly, no separate call needed.
+final wallet = await XrplWallet.generate(algorithm: XrplKeyAlgorithm.ed25519);
+print(wallet.classicAddress); // "r..."
+print(wallet.xAddress(network: XrplNetwork.mainnet, tag: 12345)); // "X..."
 ```
 
 ## Networks
