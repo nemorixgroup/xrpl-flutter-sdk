@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.3-dev
+
+Phase 2 in progress: address derivation integrated directly into
+XrplWallet, so a wallet's address is available without a separate
+call to XrplClassicAddress or XrplXAddress.
+
+### Added
+
+- `XrplWallet.classicAddress`: derived once at wallet construction
+  and cached as a field, since it never changes for a given wallet
+- `XrplWallet.xAddress({required network, tag})`: a method, not a
+  cached field, since an X-address depends on parameters that can
+  differ on every call
+- 9 new unit tests (113 -> 122), covering both new members for both
+  algorithms, and confirming they match calling
+  `XrplClassicAddress`/`XrplXAddress` directly
+
+### Design Decisions
+
+- `classicAddress` is a field (computed once, immutable); `xAddress`
+  is a method (computed per call) - the difference follows directly
+  from whether the value depends on call-time parameters
+- `XrplClassicAddress` and `XrplXAddress` were not modified; this
+  sub-version only wires existing, already-verified pieces together
+
+### Status
+
+Phase 2 in progress: classic address, X-address, and their
+integration into XrplWallet complete and tested. No network
+interaction yet (that begins in Phase 3).  
+Not ready for production use.  
+Next: Phase 2 closing audit (error handling review + test
+consolidation), closing at `0.2.0-dev`.
+
 ## 0.1.2-dev
 
 Phase 2 in progress: X-Address, encoding account, network, and an
