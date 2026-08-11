@@ -32,6 +32,7 @@ import 'phase1/family_seed_example.dart';
 import 'phase1/secp256k1_example.dart';
 import 'phase1/wallet_example.dart';
 import 'phase2/classic_address_example.dart';
+import 'phase2/wallet_address_example.dart';
 import 'phase2/x_address_example.dart';
 
 Future<void> main() async {
@@ -64,4 +65,7 @@ Future<void> main() async {
 
   print('\n--- 0.1.2-dev: X-Address ---');
   await xAddressExample();
+
+  print('\n--- 0.1.3-dev: Wallet address integration ---');
+  await walletAddressExample();
 }
