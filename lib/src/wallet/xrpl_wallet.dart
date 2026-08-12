@@ -70,8 +70,7 @@ class XrplWallet {
   /// again on every access would just repeat the same work.
   ///
   /// For an X-address (which additionally encodes the network and an
-  /// optional destination tag), see `XrplXAddress.deriveFrom`,
-  /// passing this wallet's [publicKeyBytes].
+  /// optional destination tag), see [xAddress].
   final String classicAddress;
 
   /// Derives this wallet's X-address for the given [network],

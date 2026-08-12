@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.0-dev
+
+**Phase 2 complete.** This release consolidates Phase 2: address
+derivation, from a public key to both classic addresses and
+X-addresses, fully integrated into XrplWallet, closed with a full
+error-handling and test suite audit.
+
+### Added
+
+- (Carried from 0.1.1-dev through 0.1.3-dev) `XrplClassicAddress`,
+  `XrplNetwork`, `XrplXAddress`, and their integration into
+  `XrplWallet` (`classicAddress` field, `xAddress()` method)
+
+### Changed
+
+- `XrplClassicAddress`: expanded the class-level doc comment to
+  explain why classic addresses exist (a public key alone is not a
+  usable, self-identifying, self-correcting account identifier)
+- `XrplWallet.classicAddress`: corrected a doc comment that still
+  pointed callers to `XrplXAddress.deriveFrom` directly, written
+  before the `xAddress()` method existed on the same class; now
+  references `[xAddress]`
+
+### Design Decisions
+
+- Audited every file under `lib/src/address/` and the new sections of
+  `lib/src/wallet/xrpl_wallet.dart` against the same three questions
+  used to close Phase 1: missing edge cases, error message clarity,
+  documentation accuracy. Two of four files needed no changes at all
+- Reviewed error propagation across every layer in the address
+  pipeline (public key to Account ID to classic/X-address to
+  XrplWallet) and found no coverage gaps this time - unlike the
+  Phase 1 audit, which did find and close two - because each new
+  method's tests already asserted propagation from the layer below it
+  as it was built, not deferred to a later cleanup pass
+- Reviewed `test/wallet/xrpl_wallet_classic_address_test.dart` and
+  `xrpl_wallet_x_address_test.dart` for duplication against the
+  underlying `XrplClassicAddress`/`XrplXAddress` test suites; confirmed
+  they are intentional chain-verification tests (checking the
+  integration matches the standalone derivation), not accidental
+  duplication, and left them as-is
+- This audit closes directly into `0.2.0-dev`
+
+### Phase 2 Summary
+
+- `XrplClassicAddress`, `XrplNetwork`, `XrplXAddress`, and their
+  integration into `XrplWallet`
+- 122 tests total, verified against official specifications and
+  independently computed vectors (including two vectors taken
+  directly from the official `ripple-address-codec` X-address pull
+  request) throughout
+- A test-vector transcription bug (reusing an unrelated official
+  example's public key) was caught by an unexpected test failure
+  during `0.1.2-dev`, investigated rather than "fixed" by adjusting
+  the expected value, and confirmed to be a test-construction error,
+  not an implementation bug
+- No network interaction yet - that begins in Phase 3
+
+### Status
+
+**Phase 2 complete.** Not ready for production use.  
+Next: Phase 3 - Connection Layer (`0.2.1-dev`).
+
 ## 0.1.3-dev
 
 Phase 2 in progress: address derivation integrated directly into
