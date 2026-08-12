@@ -7,9 +7,20 @@ import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 
 /// Derives an XRPL classic address ("r...") from a public key.
 ///
+/// Why this exists: a public key by itself is not a usable account
+/// identifier - it's 33 bytes of raw key material, awkward to share
+/// or type, and doesn't reveal that it's an XRPL address at all. The
+/// classic address format solves this by hashing the public key down
+/// to a fixed-size "Account ID" and encoding it with a checksum, so
+/// the result is compact, self-identifying (always starts with `r`),
+/// and self-correcting (a mistyped character fails the checksum
+/// instead of silently pointing at the wrong account).
+///
 /// A classic address is a base58, checksummed encoding of a 20-byte
 /// "Account ID", which is itself derived from a public key via
-/// RIPEMD-160(SHA-256(publicKey)).
+/// RIPEMD-160(SHA-256(publicKey)). This is a one-way derivation: an
+/// address can always be verified against a public key, but the
+/// public key can never be recovered from the address alone.
 ///
 /// See: https://xrpl.org/docs/concepts/accounts/addresses#address-encoding
 class XrplClassicAddress {
