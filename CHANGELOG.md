@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.1-dev
+
+Phase 3 in progress: the connection layer's foundation - network
+endpoints and the WebSocket connection lifecycle (connect/disconnect).
+No requests can be sent yet; that's `0.2.2-dev`.
+
+### Added
+
+- `XrplEndpoint`: Mainnet/Testnet/Devnet, each with its official
+  public WebSocket URL, verified against
+  `xrpl.org/docs/tutorials/public-servers`. Separate from
+  `XrplNetwork` (`address/`), which only covers Mainnet/Testnet since
+  those are the only two networks with an X-address prefix defined by
+  XLS-5d
+- `XrplConnectionException`: a new exception type, separate from
+  `XrplCryptoException`, for connection/network failures - a bad
+  checksum and an unreachable server are different categories of
+  problem and are now distinguishable by exception type
+- `XrplConnection`: manages a WebSocket connection's lifecycle
+  (`connect`, `disconnect`, `isConnected`) against a given
+  `XrplEndpoint`, using `package:web_socket_channel` rather than
+  `dart:io`'s `WebSocket`, for the same mobile/desktop/web
+  compatibility reasons `dart:math` was chosen over `dart:io` in
+  Phase 1
+- 13 new unit tests (127 -> 140... TODO: replace with the real count
+  from pre_commit.ps1). Tests touching the real public Testnet server
+  are kept in a separate `test/src/connection/xrpl_connection_integration_test.dart`,
+  mirroring `lib/src/` under `test/src/`, apart from the pure,
+  network-free unit tests in `test/connection/xrpl_connection_test.dart`
+
+### Design Decisions
+
+- `0.2.1-dev` intentionally covers only the connection lifecycle, not
+  sending or receiving messages - that's grouped with its first real
+  use (`account_info`, `server_info`) in `0.2.2-dev`, rather than
+  shipped in isolation with nothing using it yet
+- `XrplConnection.disconnect()` is a safe no-op when not currently
+  connected, rather than throwing - "make sure we're disconnected" is
+  a reasonable thing to want regardless of current state
+- This is the SDK's first genuinely stateful, network-dependent type;
+  everything in Phases 1 and 2 was offline and deterministic
+
+### Status
+
+Phase 3 in progress: network endpoints and connection lifecycle
+complete and verified against the real public Testnet server.  
+Not ready for production use.  
+Next: sending/receiving JSON-RPC requests over the connection, and
+the first real queries (`account_info`, `server_info`) - `0.2.2-dev`.
+
 ## 0.2.0-dev
 
 **Phase 2 complete.** This release consolidates Phase 2: address

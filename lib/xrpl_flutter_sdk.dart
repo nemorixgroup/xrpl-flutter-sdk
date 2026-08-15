@@ -24,3 +24,8 @@ export 'src/wallet/xrpl_wallet.dart';
 export 'src/address/xrpl_classic_address.dart';
 export 'src/address/xrpl_network.dart';
 export 'src/address/xrpl_x_address.dart';
+
+// Phase 3: Connection layer.
+export 'src/connection/xrpl_endpoint.dart';
+export 'src/connection/xrpl_connection.dart';
+export 'src/exceptions/xrpl_connection_exception.dart';

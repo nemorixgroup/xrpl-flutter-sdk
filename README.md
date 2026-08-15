@@ -48,7 +48,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.0-dev
+  xrpl_flutter_sdk: ^0.2.1-dev
 ```
 
 ```bash
@@ -113,6 +113,15 @@ print(xAddress); // "X..." (or "T..." for testnet)
 final wallet = await XrplWallet.generate(algorithm: XrplKeyAlgorithm.ed25519);
 print(wallet.classicAddress); // "r..."
 print(wallet.xAddress(network: XrplNetwork.mainnet, tag: 12345)); // "X..."
+```
+
+```dart
+// Connection lifecycle: connect/disconnect against a real XRPL
+// server. Sending requests comes in a later release.
+final connection = XrplConnection(XrplEndpoint.testnet);
+await connection.connect();
+print(connection.isConnected); // true
+await connection.disconnect();
 ```
 
 ## Networks
