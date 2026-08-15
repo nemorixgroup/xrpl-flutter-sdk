@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.0-dev
+  xrpl_flutter_sdk: ^0.2.1-dev
 ```
 
 ```bash
@@ -110,6 +110,15 @@ print(xAddress); // "X..." (o "T..." para testnet)
 final wallet = await XrplWallet.generate(algorithm: XrplKeyAlgorithm.ed25519);
 print(wallet.classicAddress); // "r..."
 print(wallet.xAddress(network: XrplNetwork.mainnet, tag: 12345)); // "X..."
+```
+
+```dart
+// Ciclo de vida de la conexion: conectar/desconectar contra un
+// servidor real de XRPL. Enviar requests llega en un release posterior.
+final connection = XrplConnection(XrplEndpoint.testnet);
+await connection.connect();
+print(connection.isConnected); // true
+await connection.disconnect();
 ```
 
 ## Redes
