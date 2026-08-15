@@ -1,6 +1,6 @@
 name: xrpl_flutter_sdk
 description: "The first native Flutter/Dart SDK for the XRP Ledger (XRPL). Pure Dart, no platform channels. Payments, DEX, tokenization and account security."
-version: 0.2.0-dev
+version: 0.2.1-dev
 homepage: https://github.com/nemorixgroup/xrpl-flutter-sdk
 repository: https://github.com/nemorixgroup/xrpl-flutter-sdk
 issue_tracker: https://github.com/nemorixgroup/xrpl-flutter-sdk/issues
@@ -30,6 +30,7 @@ dependencies:
   http: ^1.2.1
   meta: ^1.15.0
   pointycastle: ^4.0.0    # secp256k1 + hashes (SHA-256, RIPEMD160)
+  web_socket_channel: ^3.0.1
 
 dev_dependencies:
   build_runner: ^2.4.9
