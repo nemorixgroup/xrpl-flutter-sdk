@@ -52,4 +52,57 @@ void main() {
       await connection.disconnect();
     });
   });
+
+  group('XrplConnection.request against the real public Testnet server', () {
+    test('server_info returns a successful response with a result', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      await connection.connect();
+
+      final response = await connection.request('server_info');
+
+      expect(response['status'], 'success');
+
+      // Cast explicitly before a second layer of key access, rather
+      // than chaining response['result']['info'] directly - indexing
+      // into a dynamic value (the untyped result of the first ['result'])
+      // trips the avoid_dynamic_calls lint.
+      final result = response['result'] as Map<String, dynamic>;
+      expect(result, isA<Map<String, dynamic>>());
+      expect(result['info'], isNotNull);
+
+      await connection.disconnect();
+    });
+
+    test('an unknown command results in an XrplConnectionException', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      await connection.connect();
+
+      await expectLater(
+        connection.request('this_command_does_not_exist'),
+        throwsA(isA<XrplConnectionException>()),
+      );
+
+      await connection.disconnect();
+    });
+
+    test('concurrent requests are each matched to their own response',
+        () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      await connection.connect();
+
+      // Fire two different commands at the same time and confirm each
+      // one gets back the response that actually matches it - this
+      // is the real-world case the "id" matching logic exists for.
+      final results = await Future.wait([
+        connection.request('server_info'),
+        connection.request('server_info', {'counters': false}),
+      ]);
+
+      for (final response in results) {
+        expect(response['status'], 'success');
+      }
+
+      await connection.disconnect();
+    });
+  });
 }

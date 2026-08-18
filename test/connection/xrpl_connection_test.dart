@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_endpoint.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 
 void main() {
   group('XrplConnection.isConnected', () {
@@ -27,6 +28,17 @@ void main() {
     test('stores the endpoint it was created with', () {
       final connection = XrplConnection(XrplEndpoint.devnet);
       expect(connection.endpoint, XrplEndpoint.devnet);
+    });
+  });
+
+  group('XrplConnection.request without a prior connect', () {
+    test('throws XrplConnectionException instead of attempting to send',
+        () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      await expectLater(
+        connection.request('server_info'),
+        throwsA(isA<XrplConnectionException>()),
+      );
     });
   });
 }
