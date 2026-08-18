@@ -29,3 +29,4 @@ export 'src/address/xrpl_x_address.dart';
 export 'src/connection/xrpl_endpoint.dart';
 export 'src/connection/xrpl_connection.dart';
 export 'src/exceptions/xrpl_connection_exception.dart';
+export 'src/connection/xrpl_queries.dart';
