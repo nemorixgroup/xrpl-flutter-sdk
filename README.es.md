@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.1-dev
+  xrpl_flutter_sdk: ^0.2.2-dev
 ```
 
 ```bash
@@ -118,6 +118,16 @@ print(wallet.xAddress(network: XrplNetwork.mainnet, tag: 12345)); // "X..."
 final connection = XrplConnection(XrplEndpoint.testnet);
 await connection.connect();
 print(connection.isConnected); // true
+await connection.disconnect();
+```
+
+```dart
+// serverInfo/accountInfo se construyen sobre el metodo generico
+// request(), cada uno devolviendo solo la parte util de la respuesta.
+final connection = XrplConnection(XrplEndpoint.testnet);
+await connection.connect();
+final info = await serverInfo(connection);
+print(info['server_state']); // ej. "full"
 await connection.disconnect();
 ```
 

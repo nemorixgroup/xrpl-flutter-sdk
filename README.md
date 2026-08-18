@@ -48,7 +48,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.1-dev
+  xrpl_flutter_sdk: ^0.2.2-dev
 ```
 
 ```bash
@@ -121,6 +121,16 @@ print(wallet.xAddress(network: XrplNetwork.mainnet, tag: 12345)); // "X..."
 final connection = XrplConnection(XrplEndpoint.testnet);
 await connection.connect();
 print(connection.isConnected); // true
+await connection.disconnect();
+```
+
+```dart
+// serverInfo/accountInfo are built on the generic request() method,
+// each returning just the useful inner part of the response.
+final connection = XrplConnection(XrplEndpoint.testnet);
+await connection.connect();
+final info = await serverInfo(connection);
+print(info['server_state']); // e.g. "full"
 await connection.disconnect();
 ```
 

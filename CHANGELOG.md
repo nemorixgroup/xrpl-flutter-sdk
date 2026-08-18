@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.2-dev
+
+Phase 3 in progress: sending/receiving JSON-RPC requests over the
+connection, with account_info and server_info as the first real
+queries.
+
+### Added
+
+- `XrplConnection.request(command, [params])`: sends a generic XRPL
+  request and returns its response, matching responses to requests by
+  `id` so multiple requests can be in flight on the same connection
+  at once. Throws `XrplConnectionException` if not connected, on
+  timeout (20s default), or if the server responds with
+  `"status": "error"`
+- `serverInfo(connection, {counters})`: returns the connected
+  server's status (`result.info`), unwrapped from the response
+  envelope
+- `accountInfo(connection, account, {ledgerHash, ledgerIndex, queue, signerLists})`:
+  returns an account's data (`result.account_data`); all parameters
+  beyond `account` are optional and only included in the request if
+  explicitly provided
+- New `lib/src/connection/xrpl_queries.dart`, holding command-specific
+  helpers built on top of `XrplConnection.request`
+- 3 new unit/integration tests for `request()`, plus integration
+  tests for `serverInfo` and `accountInfo` against the real public
+  Testnet server (146 tests total)
+
+### Design Decisions
+
+- Both query helpers return only the useful inner part of the
+  response (`result.info`, `result.account_data`), not the full
+  envelope - consistent between the two, so callers never need to
+  know XRPL's response wrapping shape
+- `accountInfo`'s optional parameters default to `null`, not sensible
+  defaults - each is added to the outgoing request only if explicitly
+  provided, keeping the simplest call as close to the official
+  minimal example as possible
+- `accountInfo`'s success case (a funded account with real data) is
+  not yet covered by a test, since Testnet resets periodically and a
+  hardcoded "known funded account" would be unreliable long-term;
+  only the stable error case (a freshly generated, never-funded
+  account) is tested for now - tracked for once this SDK can fund a
+  Testnet account itself
+
+### Status
+
+Phase 3 in progress: connection lifecycle, generic requests, and the
+first two real queries complete and verified against the real public
+Testnet server.  
+Not ready for production use.  
+Next: subscribe streams (`0.2.3-dev`).
+
 ## 0.2.1-dev
 
 Phase 3 in progress: the connection layer's foundation - network
