@@ -62,10 +62,6 @@ void main() {
 
       expect(response['status'], 'success');
 
-      // Cast explicitly before a second layer of key access, rather
-      // than chaining response['result']['info'] directly - indexing
-      // into a dynamic value (the untyped result of the first ['result'])
-      // trips the avoid_dynamic_calls lint.
       final result = response['result'] as Map<String, dynamic>;
       expect(result, isA<Map<String, dynamic>>());
       expect(result['info'], isNotNull);
@@ -102,6 +98,41 @@ void main() {
         expect(response['status'], 'success');
       }
 
+      await connection.disconnect();
+    });
+  });
+
+  group(
+      'XrplConnection subscription events against the real public '
+      'Testnet server', () {
+    test(
+        'subscribing to the ledger stream delivers a real ledgerClosed '
+        'event on ledgerEvents', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      await connection.connect();
+
+      final subscribeResponse = await connection.request(
+        'subscribe',
+        {
+          'streams': ['ledger'],
+        },
+      );
+      expect(subscribeResponse['status'], 'success');
+
+      // A new ledger version closes roughly every 3-5 seconds on
+      // XRPL; this timeout is generous relative to that, without
+      // being so long that a real failure takes forever to surface.
+      final event = await connection.ledgerEvents.first.timeout(
+        const Duration(seconds: 15),
+      );
+
+      expect(event['type'], 'ledgerClosed');
+      expect(event['ledger_index'], isA<int>());
+      expect(event['ledger_hash'], isA<String>());
+
+      await connection.request('unsubscribe', {
+        'streams': ['ledger'],
+      });
       await connection.disconnect();
     });
   });

@@ -41,4 +41,36 @@ void main() {
       );
     });
   });
+
+  group('XrplConnection event streams', () {
+    test(
+        'ledgerEvents, transactionEvents, validationEvents, and '
+        'serverEvents are all broadcast streams (support multiple '
+        'listeners)', () {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      expect(connection.ledgerEvents.isBroadcast, isTrue);
+      expect(connection.transactionEvents.isBroadcast, isTrue);
+      expect(connection.validationEvents.isBroadcast, isTrue);
+      expect(connection.serverEvents.isBroadcast, isTrue);
+    });
+
+    test(
+        'ledgerEvents supports multiple simultaneous listeners without '
+        'error', () async {
+      // Broadcast streams return a new wrapper object on each .stream
+      // access (this is normal Dart behavior, not a bug), so identity
+      // isn't the right thing to check - what matters is that more
+      // than one listener can subscribe at once without throwing, the
+      // functional guarantee a broadcast stream actually provides.
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      final subscriptionA = connection.ledgerEvents.listen((_) {});
+      final subscriptionB = connection.ledgerEvents.listen((_) {});
+
+      expect(subscriptionA, isNotNull);
+      expect(subscriptionB, isNotNull);
+
+      await subscriptionA.cancel();
+      await subscriptionB.cancel();
+    });
+  });
 }
