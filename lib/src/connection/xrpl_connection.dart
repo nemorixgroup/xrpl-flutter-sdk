@@ -30,6 +30,18 @@ import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 /// [request] elsewhere, rather than each reimplementing the same
 /// send/match/receive plumbing.
 ///
+/// It also exposes typed event streams ([ledgerEvents],
+/// [transactionEvents], [validationEvents], [serverEvents]) for XRPL
+/// subscription push messages. Per the official specification, these
+/// arrive as a genuinely different kind of message from request
+/// responses: a response echoes back the `id` the request was sent
+/// with, while a subscription event has no `id` at all and is
+/// instead identified by a `type` field (`"ledgerClosed"`,
+/// `"transaction"`, and so on). Splitting events into one stream per
+/// type - rather than a single generic stream the caller filters by
+/// `type` themselves - removes an entire class of typo-prone,
+/// silently-ignored-on-mismatch string comparisons from calling code.
+///
 /// See:
 /// https://xrpl.org/docs/tutorials/get-started/get-started-http-websocket-apis
 class XrplConnection {
@@ -57,6 +69,20 @@ class XrplConnection {
   final Map<int, Completer<Map<String, dynamic>>> _pendingRequests = {};
   int _nextRequestId = 1;
 
+  // One broadcast controller per subscription event type this SDK
+  // currently supports. Created once at construction (not per
+  // connect() call) so a caller's existing .listen() subscriptions
+  // keep working across a disconnect/reconnect, rather than being
+  // silently invalidated by a fresh controller each time.
+  final StreamController<Map<String, dynamic>> _ledgerEventsController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _transactionEventsController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _validationEventsController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _serverEventsController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
   /// Whether this connection currently has an open channel.
   ///
   /// This only reflects whether [connect] has been called and
@@ -65,10 +91,39 @@ class XrplConnection {
   /// only discovered when a send or receive actually fails.
   bool get isConnected => _channel != null;
 
+  /// Emits a message every time the server's `ledger` stream sends a
+  /// `ledgerClosed` event (a new ledger version was validated).
+  /// Requires subscribing first - see the `subscribeToLedger` helper.
+  Stream<Map<String, dynamic>> get ledgerEvents =>
+      _ledgerEventsController.stream;
+
+  /// Emits a message every time the server's `transactions` (or
+  /// `transactions_proposed`) stream sends a `transaction` event.
+  /// Requires subscribing first.
+  Stream<Map<String, dynamic>> get transactionEvents =>
+      _transactionEventsController.stream;
+
+  /// Emits a message every time the server's `validations` stream
+  /// sends a `validationReceived` event. Requires subscribing first.
+  Stream<Map<String, dynamic>> get validationEvents =>
+      _validationEventsController.stream;
+
+  /// Emits a message every time the server's `server` stream sends a
+  /// `serverStatus` event. Requires subscribing first.
+  Stream<Map<String, dynamic>> get serverEvents =>
+      _serverEventsController.stream;
+
   /// Opens the WebSocket connection to [endpoint].
   ///
   /// Throws an [XrplConnectionException] if a connection is already
   /// open, or if the underlying WebSocket fails to connect.
+  ///
+  /// Note: XRPL subscriptions are tied to the specific WebSocket
+  /// connection they were made on, not remembered by the server
+  /// across reconnects. This class does not reconnect automatically,
+  /// so any active subscriptions need to be re-established (via
+  /// `subscribeToLedger` and friends) after calling [connect] again
+  /// following a [disconnect].
   ///
   /// Example:
   /// ```dart
@@ -130,6 +185,9 @@ class XrplConnection {
     // Any request still waiting for a response at this point will
     // never get one now that the connection is closed - fail them
     // explicitly instead of leaving their Futures pending forever.
+    // Note: the event stream controllers are deliberately NOT closed
+    // here, so a caller's existing .listen() subscriptions remain
+    // valid if they call connect() again later.
     _failAllPendingRequests('Connection closed before a response arrived.');
   }
 
@@ -202,11 +260,68 @@ class XrplConnection {
 
   void _handleIncomingMessage(dynamic message) {
     final decoded = jsonDecode(message as String) as Map<String, dynamic>;
-    final id = decoded['id'];
-    if (id is! int) return; // Not a response we're tracking; ignore.
 
-    final completer = _pendingRequests.remove(id);
-    completer?.complete(decoded);
+    // Two genuinely different kinds of message arrive on the same
+    // socket: request responses (identified by "id", per the
+    // standard response format) and subscription push events
+    // (identified by "type", per the subscribe method's stream
+    // documentation - they never carry an "id"). Route each to the
+    // right place instead of assuming every message is a response.
+    final id = decoded['id'];
+    if (id is int) {
+      final completer = _pendingRequests.remove(id);
+      completer?.complete(decoded);
+      return;
+    }
+
+    final type = decoded['type'];
+    if (type is String) {
+      _routeEvent(type, decoded);
+    }
+    // Anything with neither a matching "id" nor a recognized "type"
+    // is silently ignored, the same way an unmatched "id" already was.
+  }
+
+  /// Routes an incoming subscription event to the stream matching its
+  /// [type], per the field-to-stream mapping documented at
+  /// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/subscription-methods/subscribe
+  ///
+  /// Event types this SDK does not yet expose a dedicated stream for
+  /// are intentionally ignored rather than raising an error, since
+  /// receiving a recognized-but-unhandled event isn't itself a
+  /// failure - just a feature not built yet. Each ignored type and
+  /// its official documentation:
+  /// - `consensusPhase` (from the `consensus` stream): sent when the
+  ///   consensus process changes phase. See the "Consensus Stream"
+  ///   section of the `subscribe` reference above.
+  /// - `bookChanges` (from the `book_changes` stream): sent whenever
+  ///   a new ledger is validated, summarizing order book changes -
+  ///   relevant to Phase 5 (DEX & Cross-Currency), not this
+  ///   sub-version. See the "Book Changes Stream" section of the
+  ///   `subscribe` reference above.
+  /// - `peerStatusChange` (from the admin-only `peer_status` stream):
+  ///   information about connected peer `xrpld` servers, not
+  ///   applicable to a client SDK. See the "Peer Status Stream"
+  ///   section of the `subscribe` reference above.
+  /// - `manifestReceived` (from the `manifests` stream): sent when
+  ///   the server receives an update to a validator's ephemeral
+  ///   signing key. See the `streams` parameter table in the
+  ///   `subscribe` reference above.
+  void _routeEvent(String type, Map<String, dynamic> event) {
+    switch (type) {
+      case 'ledgerClosed':
+        _ledgerEventsController.add(event);
+      case 'transaction':
+        _transactionEventsController.add(event);
+      case 'validationReceived':
+        _validationEventsController.add(event);
+      case 'serverStatus':
+        _serverEventsController.add(event);
+      default:
+      // consensusPhase, bookChanges, peerStatusChange,
+      // manifestReceived - see doc comment above for why each is
+      // intentionally not handled yet.
+    }
   }
 
   void _handleStreamError(Object error) {

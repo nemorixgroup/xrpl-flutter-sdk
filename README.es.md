@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.2-dev
+  xrpl_flutter_sdk: ^0.2.3-dev
 ```
 
 ```bash
@@ -129,6 +129,14 @@ await connection.connect();
 final info = await serverInfo(connection);
 print(info['server_state']); // ej. "full"
 await connection.disconnect();
+```
+
+```dart
+// Suscribirse a eventos en tiempo real en vez de hacer polling.
+await subscribeToLedger(connection);
+connection.ledgerEvents.listen((event) {
+  print('Nuevo ledger: ${event['ledger_index']}');
+});
 ```
 
 ## Redes

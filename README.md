@@ -48,7 +48,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.2-dev
+  xrpl_flutter_sdk: ^0.2.3-dev
 ```
 
 ```bash
@@ -132,6 +132,14 @@ await connection.connect();
 final info = await serverInfo(connection);
 print(info['server_state']); // e.g. "full"
 await connection.disconnect();
+```
+
+```dart
+// Subscribe to real-time events instead of polling.
+await subscribeToLedger(connection);
+connection.ledgerEvents.listen((event) {
+  print('New ledger: ${event['ledger_index']}');
+});
 ```
 
 ## Networks

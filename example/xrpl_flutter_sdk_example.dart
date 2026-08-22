@@ -36,6 +36,7 @@ import 'phase2/wallet_address_example.dart';
 import 'phase2/x_address_example.dart';
 import 'phase3/connection_example.dart';
 import 'phase3/queries_example.dart';
+import 'phase3/subscriptions_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -78,4 +79,7 @@ Future<void> main() async {
 
   print('\n--- 0.2.2-dev: Requests and queries ---');
   await queriesExample();
+
+  print('\n--- 0.2.3-dev: Subscription streams ---');
+  await subscriptionsExample();
 }
