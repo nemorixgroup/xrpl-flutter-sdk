@@ -30,3 +30,4 @@ export 'src/connection/xrpl_endpoint.dart';
 export 'src/connection/xrpl_connection.dart';
 export 'src/exceptions/xrpl_connection_exception.dart';
 export 'src/connection/xrpl_queries.dart';
+export 'src/connection/xrpl_subscriptions.dart';
