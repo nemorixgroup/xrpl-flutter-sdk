@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.2.3-dev
+
+Phase 3 in progress: real-time subscription streams, so the SDK can
+react to network events (new ledgers, transactions, validations,
+server status changes) as they happen, instead of only polling on
+demand.
+
+### Added
+
+- `XrplConnection.ledgerEvents`, `.transactionEvents`,
+  `.validationEvents`, `.serverEvents`: typed broadcast streams for
+  XRPL subscription push messages, routed by the message's `type`
+  field (`ledgerClosed`, `transaction`, `validationReceived`,
+  `serverStatus`). Separate from `request()`'s `id`-matched
+  responses, which is a genuinely different kind of message per the
+  official specification
+- `subscribeToLedger`/`unsubscribeFromLedger`,
+  `subscribeToTransactions`/`unsubscribeFromTransactions` (with an
+  `includeProposed` option), `subscribeToValidations`/`unsubscribeFromValidations`,
+  `subscribeToServer`/`unsubscribeFromServer` in a new
+  `lib/src/connection/xrpl_subscriptions.dart`
+- 8 new tests (146 -> 154), including a live integration test that
+  subscribes to the `ledger` stream and waits for a real
+  `ledgerClosed` event from the public Testnet server
+
+### Design Decisions
+
+- Chose separate, typed streams per event type over one generic
+  stream the caller filters by `type` themselves, removes a class of
+  typo-prone, silently-ignored-on-mismatch string comparisons from
+  calling code, and matches the pattern official client libraries in
+  other languages already use (e.g. separate stream channels per
+  event type)
+- Event stream controllers are created once at construction, not per
+  `connect()` call, so a caller's existing `.listen()` subscriptions
+  keep working across a disconnect/reconnect
+- Recognized-but-unhandled event types (`consensusPhase`,
+  `bookChanges`, `peerStatusChange`, `manifestReceived`) are silently
+  ignored rather than raising an error - each is documented with its
+  official source directly in `_routeEvent`'s doc comment, since
+  receiving an unrecognized event isn't itself a failure, just a
+  feature not built yet (`bookChanges` is relevant to Phase 5, the
+  admin-only ones aren't relevant to a client SDK at all)
+
+### Status
+
+Phase 3 in progress: connection lifecycle, requests/queries, and
+subscription streams complete and verified against the real public
+Testnet server.   
+Not ready for production use.   
+Next: Phase 3 closing audit (`0.3.0-dev`).
+
 ## 0.2.2-dev
 
 Phase 3 in progress: sending/receiving JSON-RPC requests over the
