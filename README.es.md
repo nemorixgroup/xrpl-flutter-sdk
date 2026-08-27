@@ -3,7 +3,7 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-blue.svg)](https://flutter.dev)
 [![CI](https://github.com/nemorixgroup/xrpl-flutter-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/actions)
 [![Status](https://img.shields.io/badge/Status-Fase%202%20Completa-brightgreen.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)
-[![Status](https://img.shields.io/badge/Status-Fase%203%20En%20Progreso-red.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)  
+[![Status](https://img.shields.io/badge/Status-Fase%204%20En%20Progreso-red.svg)](https://github.com/nemorixgroup/xrpl-flutter-sdk/blob/main)  
 
 [English](README.md) | **Español**  
 
@@ -13,7 +13,8 @@ El primer SDK nativo de Flutter/Dart para el XRP Ledger (XRPL).
 Dart Puro · Sin platform channels · Apache 2.0 · pub.dev  
 
 > **Estado: Desarrollo Temprano** - la API aun no es estable.  
-> Fase 1 (Fundamentos Criptograficos) y Fase 2 (Direcciones) completadas. Fase 3 (Capa de conexion) arranca a continuacion.
+> Fase 4 (Transacciones core) arranca a continuacion. Ver
+> [CHANGELOG.md](CHANGELOG.md) para mas detalles.
 
 Diseñado para ser un **SDK de XRPL abierto y de proposito general**:
 pagos, DEX, tokenizacion (NFTs, MPT), escrows, canales de pago, checks
@@ -25,8 +26,8 @@ y seguridad de cuenta, todo en un paquete Dart nativo.
 |------|------|---------|--------|
 | 1 | Fundamentos criptograficos (seeds, secp256k1, Ed25519) | `0.1.0-dev` | ✅ Completado |
 | 2 | Direcciones (classic address, X-address, codec base58 XRPL) | `0.2.0-dev` | ✅ Completado |
-| 3 | Capa de conexion (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) | `0.3.0-dev` | 🔄 En progreso |
-| 4 | Transacciones core (Payment, TrustSet, sign, submit) | `0.4.0-dev` | ⏳ Planificado |
+| 3 | Capa de conexion (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) | `0.3.0-dev` | ✅ Completado |
+| 4 | Transacciones core (Payment, TrustSet, sign, submit) | `0.4.0-dev` | 🔄 En progreso |
 | 5 | DEX y cross-currency (OfferCreate, AMM, path finding) | `0.5.0-dev` | ⏳ Planificado |
 | 6 | Condicionales y canales (Escrow, Payment Channels, Checks) | `0.6.0-dev` | ⏳ Planificado |
 | 7 | Tokenizacion (NFTs, MPT, Clawback) | `0.7.0-dev` | ⏳ Planificado |
@@ -45,7 +46,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.2.3-dev
+  xrpl_flutter_sdk: ^0.3.0-dev
 ```
 
 ```bash

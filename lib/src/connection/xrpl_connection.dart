@@ -258,15 +258,42 @@ class XrplConnection {
     return response;
   }
 
+  // Note: this method's malformed-message handling (message is not
+  // a String, invalid JSON, JSON that isn't an object) does not have
+  // a dedicated unit test. A real XRPL server realistically never
+  // sends malformed data, and this method is private with no public
+  // testing hook, so a test would require either exposing internal
+  // state solely for testing or a flaky attempt to corrupt a real
+  // connection's traffic. Judged not worth the complexity for this
+  // low-probability defensive path.
   void _handleIncomingMessage(dynamic message) {
-    final decoded = jsonDecode(message as String) as Map<String, dynamic>;
+    // In practice, a text WebSocketChannel always delivers String
+    // messages - this guards against the theoretical case where it
+    // doesn't, rather than assuming it never happens. Known
+    // trade-off: this SDK has no logging mechanism yet, so this would
+    // currently leave no trace for debugging if it ever triggered.
+    // Candidate for a future optional callback (e.g.
+    // onMalformedMessage) if this becomes a real debugging pain point.
+    if (message is! String) return;
 
-    // Two genuinely different kinds of message arrive on the same
-    // socket: request responses (identified by "id", per the
-    // standard response format) and subscription push events
-    // (identified by "type", per the subscribe method's stream
-    // documentation - they never carry an "id"). Route each to the
-    // right place instead of assuming every message is a response.
+    final Object? decodedRaw;
+    try {
+      decodedRaw = jsonDecode(message);
+    } on FormatException catch (_) {
+      // Not valid JSON at all - an XRPL server should never send
+      // this, so seeing it would suggest a wrong endpoint, a
+      // misbehaving proxy, or similar. Same logging trade-off as
+      // above: silently dropped for now, not currently traceable.
+      return;
+    }
+
+    if (decodedRaw is! Map<String, dynamic>) {
+      // Valid JSON, but not an object (for example, a bare array or
+      // number), same handling and trade-off as above.
+      return;
+    }
+    final decoded = decodedRaw;
+
     final id = decoded['id'];
     if (id is int) {
       final completer = _pendingRequests.remove(id);

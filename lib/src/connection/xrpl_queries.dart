@@ -1,4 +1,5 @@
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 
 /// Requests the connected server's own status: build version, sync
 /// state, validated ledger range, and related operational info.
@@ -37,9 +38,34 @@ Future<Map<String, dynamic>> serverInfo(
 
   // The useful data lives two levels deep in the response envelope
   // (result.info) - unwrap it here so callers don't have to know
-  // that shape themselves.
-  final result = response['result'] as Map<String, dynamic>;
-  return result['info'] as Map<String, dynamic>;
+  // that shape themselves. Verified with "is!" rather than an "as"
+  // cast, consistent with the defensive pattern established in
+  // XrplConnection._handleIncomingMessage during the Phase 3 audit:
+  // a malformed response should raise a clear XrplConnectionException,
+  // not an uncontrolled TypeError.
+  final resultRaw = response['result'];
+  // Note: this defensive check does not have a dedicated test. By
+  // this point, connection.request() has already confirmed
+  // status == "success", so a real XRPL server's response should
+  // always have this shape per the official specification; the
+  // same low-probability, not-worth-testing trade-off already
+  // accepted for XrplConnection._handleIncomingMessage during this
+  // audit.
+  if (resultRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected server_info response shape: missing or invalid '
+      '"result" field.',
+    );
+  }
+  final infoRaw = resultRaw['info'];
+  // Same trade-off as above.
+  if (infoRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected server_info response shape: missing or invalid '
+      '"result.info" field.',
+    );
+  }
+  return infoRaw;
 }
 
 /// Requests account data (balance, sequence number, flags, and more)
@@ -91,6 +117,23 @@ Future<Map<String, dynamic>> accountInfo(
 
   final response = await connection.request('account_info', params);
 
-  final result = response['result'] as Map<String, dynamic>;
-  return result['account_data'] as Map<String, dynamic>;
+  // Same defensive "is!" pattern as serverInfo above, instead of an
+  // unchecked "as" cast.
+  final resultRaw = response['result'];
+  // Same untested-by-design trade-off as serverInfo above.
+  if (resultRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected account_info response shape: missing or invalid '
+      '"result" field.',
+    );
+  }
+  final accountDataRaw = resultRaw['account_data'];
+  // Same trade-off as above.
+  if (accountDataRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected account_info response shape: missing or invalid '
+      '"result.account_data" field.',
+    );
+  }
+  return accountDataRaw;
 }
