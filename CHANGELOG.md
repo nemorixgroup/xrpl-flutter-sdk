@@ -5,6 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0-dev
+
+**Phase 3 complete.** This release consolidates Phase 3: connection
+lifecycle, JSON-RPC requests, account/server queries, and real-time
+subscription streams, closed with a full error-handling and test
+suite audit.
+
+### Added
+
+- (Carried from 0.2.1-dev through 0.2.3-dev) `XrplEndpoint`,
+  `XrplConnectionException`, `XrplConnection` (lifecycle, `request`,
+  typed event streams), `xrpl_queries.dart` (`serverInfo`,
+  `accountInfo`), `xrpl_subscriptions.dart` (4 subscribe/unsubscribe
+  pairs)
+
+### Changed
+
+- `XrplConnection._handleIncomingMessage`: hardened against malformed
+  incoming messages (not a `String`, invalid JSON, JSON that isn't an
+  object), using type checks (`is!`) rather than unchecked casts, so
+  a malformed message is silently dropped instead of risking an
+  uncaught exception inside the shared stream listener
+- `serverInfo`/`accountInfo`: replaced unchecked `as Map<String, dynamic>`
+  casts with explicit `is!` checks, throwing a clear
+  `XrplConnectionException` on an unexpected response shape instead
+  of risking an uncontrolled `TypeError`
+
+### Design Decisions
+
+- Audited every file under `lib/src/connection/` against the same
+  three questions used to close Phases 1 and 2: missing edge cases,
+  error message clarity, documentation accuracy. Three of five files
+  needed no changes at all
+- Two defensive validations added during this audit (malformed
+  WebSocket messages, malformed query responses) were deliberately
+  left without dedicated tests: by the time either check runs, prior
+  validation already makes a real failure extremely unlikely from an
+  actual XRPL server, and there is no practical way to make the
+  public Testnet server return malformed data on purpose. Documented
+  directly in the code as a known, low-risk trade-off rather than
+  silently untested
+
+### Phase 3 Summary
+
+- `XrplEndpoint`, `XrplConnectionException`, `XrplConnection`,
+  `xrpl_queries.dart`, `xrpl_subscriptions.dart`
+- 154 tests total, including this SDK's first integration tests
+  against a real, live XRPL server (the public Testnet), kept
+  separate from fast unit tests under `test/src/`
+- The SDK can now connect to XRPL, send/receive JSON-RPC requests,
+  query real account and server data, and react to real-time network
+  events (new ledgers, transactions, validations, server status)
+
+### Status
+
+**Phase 3 complete.**  
+Not ready for production use.   
+Next: Phase 4 - Core Transactions (`0.3.1-dev`).
+
 ## 0.2.3-dev
 
 Phase 3 in progress: real-time subscription streams, so the SDK can
