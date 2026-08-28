@@ -31,3 +31,10 @@ export 'src/connection/xrpl_connection.dart';
 export 'src/exceptions/xrpl_connection_exception.dart';
 export 'src/connection/xrpl_queries.dart';
 export 'src/connection/xrpl_subscriptions.dart';
+
+// Phase 4: Core transactions.
+export 'src/transactions/xrpl_transaction.dart';
+export 'src/transactions/models/xrpl_payment.dart';
+export 'src/transactions/models/xrpl_trust_set.dart';
+export 'src/transactions/xrpl_fee_strategy.dart';
+export 'src/transactions/xrpl_autofill.dart';
