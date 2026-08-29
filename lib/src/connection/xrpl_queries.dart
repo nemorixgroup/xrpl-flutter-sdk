@@ -137,3 +137,39 @@ Future<Map<String, dynamic>> accountInfo(
   }
   return accountDataRaw;
 }
+
+/// Requests the network's current transaction cost information:
+/// several already-calculated fee levels, and the current ledger
+/// index.
+///
+/// Unlike [serverInfo] and [accountInfo], this returns the response's
+/// full `result` object (not a further-nested field), since every
+/// field in it - `drops`, `levels`, `ledger_current_index` - can be
+/// directly useful, not just one nested sub-object.
+///
+/// Throws an `XrplConnectionException` (via [XrplConnection.request])
+/// if not connected, the request times out, or the server returns an
+/// error.
+///
+/// Example:
+/// ```dart
+/// final feeInfo = await fee(connection);
+/// print(feeInfo['drops']['open_ledger_fee']); // e.g. "10"
+/// print(feeInfo['ledger_current_index']); // e.g. 26575101
+/// ```
+///
+/// See:
+/// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/server-info-methods/fee
+Future<Map<String, dynamic>> fee(XrplConnection connection) async {
+  final response = await connection.request('fee');
+
+  final resultRaw = response['result'];
+  // Same defensive, intentionally-untested pattern as serverInfo and
+  // accountInfo above (see docs-sdk/phase-3/closing-audit/ for why).
+  if (resultRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected fee response shape: missing or invalid "result" field.',
+    );
+  }
+  return resultRaw;
+}

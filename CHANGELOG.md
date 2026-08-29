@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.1-dev
+
+Phase 4 in progress: the transaction model. This is the first
+sub-version that can describe what you want to happen on the ledger
+(send XRP, extend trust to a token), transactions still aren't
+signed or submitted yet, that's 0.3.2-dev and 0.3.3-dev.
+
+### Added
+
+- `XrplTransaction`: the shared interface every transaction type
+  implements (`account`, `sequence`, `fee`, `lastLedgerSequence`,
+  `copyWith`, `toJson`), so `autofill` and future signing/submission
+  code work with any transaction type without per-type duplication
+- `XrplPayment`, `XrplTrustSet` in a new `lib/src/transactions/models/`
+  folder: typed transaction models with `toJson()`/`copyWith()`.
+  `XrplPayment` is XRP-only for this sub-version; issued-currency
+  Payments are deferred to Phase 5 (DEX & Cross-Currency)
+- `fee(connection)` in `xrpl_queries.dart`: the official `fee`
+  command, returning the full `result` (multiple already-calculated
+  fee levels plus the current ledger index)
+- `XrplFeeStrategy`: `openLedger` (default), `minimum`, `median`,
+  `base` - selects which of the `fee` command's reported values
+  `autofill` uses
+- `autofill<T extends XrplTransaction>(connection, transaction, {feeStrategy})`:
+  fills in `sequence` (via `accountInfo`), `fee`, and
+  `lastLedgerSequence` (current ledger index + 4, the official
+  minimum recommendation), reusing `accountInfo`/`fee` rather than
+  duplicating either lookup, and only filling in fields not already
+  set
+- New `lib/src/transactions/` folder, sibling to `crypto/`, `codec/`,
+  `wallet/`, `address/`, `connection/`, `exceptions/`
+- 11 new tests (154 -> ... wait, verify actual count -> 167), including
+  live integration tests against the public Testnet server
+
+### Design Decisions
+
+- `XrplTransaction` as a shared interface (not separate
+  `autofillPayment`/`autofillTrustSet` functions) so `autofill`, and
+  future signing/submission logic, works generically across every
+  transaction type this SDK adds in later phases, without repeating
+  the same logic per type
+- `Fee` defaults to `open_ledger_fee`, not `minimum_fee` - per
+  official "Reliable Transaction Submission" guidance, prioritizing
+  prompt inclusion over minimizing cost, while still letting callers
+  choose `minimum`/`median`/`base` explicitly
+- `autofill` skips network calls entirely for any field already
+  provided - a transaction with `sequence`, `fee`, and
+  `lastLedgerSequence` all set never touches the network, verified
+  with a dedicated unit test
+
+### Status
+
+Phase 4 in progress: transaction model and autofill complete and
+verified against the real public Testnet server.   
+Not ready for production use.   
+Next: signing transactions (`0.3.2-dev`).
+
 ## 0.3.0-dev
 
 **Phase 3 complete.** This release consolidates Phase 3: connection
