@@ -13,7 +13,7 @@ El primer SDK nativo de Flutter/Dart para el XRP Ledger (XRPL).
 Dart Puro · Sin platform channels · Apache 2.0 · pub.dev  
 
 > **Estado: Desarrollo Temprano** - la API aun no es estable.  
-> Fase 4 (Transacciones core) arranca a continuacion. Ver
+> Fase 4 (Transacciones core) en progreso. Ver
 > [CHANGELOG.md](CHANGELOG.md) para mas detalles.
 
 Diseñado para ser un **SDK de XRPL abierto y de proposito general**:
@@ -46,7 +46,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.3.0-dev
+  xrpl_flutter_sdk: ^0.3.1-dev
 ```
 
 ```bash
@@ -138,6 +138,18 @@ await subscribeToLedger(connection);
 connection.ledgerEvents.listen((event) {
   print('Nuevo ledger: ${event['ledger_index']}');
 });
+```
+
+```dart
+// Construye una transaccion, y deja que autofill llene Sequence,
+// Fee, y LastLedgerSequence automaticamente.
+const payment = XrplPayment(
+  account: wallet.classicAddress,
+  destination: 'rSomeRecipientAddress...',
+  amountDrops: '10000000', // 10 XRP
+);
+final ready = await autofill(connection, payment);
+print(ready.fee); // ej. "10"
 ```
 
 ## Redes
