@@ -18,8 +18,8 @@
 // Planned phases:
 //   Phase 1 - Cryptographic Fundamentals (seeds, secp256k1, Ed25519) - DONE
 //   Phase 2 - Addresses (classic address, X-address, base58 XRPL codec) - DONE
-//   Phase 3 - Connection Layer (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) - CURRENT
-//   Phase 4 - Core Transactions (Payment, TrustSet, sign, submit)
+//   Phase 3 - Connection Layer (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) - DONE
+//   Phase 4 - Core Transactions (Payment, TrustSet, sign, submit) - CURRENT
 //   Phase 5 - DEX & Cross-Currency (OfferCreate, AMM, path finding)
 //   Phase 6 - Conditionals & Channels (Escrow, Payment Channels, Checks)
 //   Phase 7 - Tokenization (NFTs, MPT, Clawback)
@@ -37,6 +37,7 @@ import 'phase2/x_address_example.dart';
 import 'phase3/connection_example.dart';
 import 'phase3/queries_example.dart';
 import 'phase3/subscriptions_example.dart';
+import 'phase4/transaction_model_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -82,4 +83,9 @@ Future<void> main() async {
 
   print('\n--- 0.2.3-dev: Subscription streams ---');
   await subscriptionsExample();
+
+  // Phase 4 - Core Transactions
+  // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-4
+  print('\n--- 0.3.1-dev: Transaction model & autofill ---');
+  await transactionModelExample();
 }
