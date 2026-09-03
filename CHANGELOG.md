@@ -5,6 +5,73 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.2-dev
+
+Phase 4 in progress: transaction signing. This is the largest and
+most technically involved sub-version in the SDK so far - it produces
+a fully signed, network-ready transaction, though submitting it is
+still `0.3.3-dev`.
+
+### Added
+
+- `XrplSecp256k1.sign`/`.verify`/`.decodeCompressedPublicKey`:
+  deterministic (RFC 6979), fully canonical (DER-encoded, low-S
+  normalized) ECDSA signing, meeting XRPL's protocol-enforced
+  signature canonicalization requirement
+- `XrplEd25519.sign`: standard Ed25519 signing (RFC 8032), always
+  canonical by construction
+- `XrplFieldDefinitions`: binary serialization properties (type code,
+  field code, exact Field ID bytes, length-prefix flag) for every
+  field `XrplPayment`/`XrplTrustSet` need, generated from a live
+  `server_definitions` response rather than hand-transcribed
+- `XrplBinaryPrimitives`: length-prefix, `UInt16`, `UInt32`,
+  `AccountID`, and `Blob` encoders
+- `XrplAmountSerializer`: XRP and issued-currency `Amount` encoding,
+  including 16-significant-digit mantissa/exponent normalization
+- `XrplTransactionSerializer`: assembles a transaction's fields into
+  XRPL's canonical binary format, sorted by `(typeCode, fieldCode)`
+- `sign(transactionJson, wallet)`: the complete signing pipeline -
+  adds `SigningPubKey`, serializes, prefixes, hashes, signs with the
+  wallet's algorithm-appropriate key, adds `TxnSignature`
+- `scripts/regenerate_field_definitions.dart`: internal maintenance
+  tool (not part of the public API) that queries a live server's
+  `server_definitions` to regenerate `XrplFieldDefinitions`
+- 71 new tests (146... wait, verify: 217 total)
+
+### Design Decisions
+
+- Every binary encoder was verified against an official worked
+  example (an `OfferCreate` transaction's published JSON and binary),
+  decoded byte-by-byte before any Dart code was written - not just
+  tested after the fact
+- Canonical field order sorts by `(typeCode, fieldCode)` as separate
+  numbers, not by comparing already-encoded Field ID bytes - confirmed
+  against the official example, where `Expiration` (a 1-byte Field
+  ID) correctly sorts before `OfferSequence` (a 2-byte Field ID)
+  because `10 < 25` as field codes, a comparison the encoded bytes
+  alone do not preserve
+- Field definitions are generated once via a live `server_definitions`
+  query (by `scripts/regenerate_field_definitions.dart`) and committed
+  as static constants - signing a transaction never requires network
+  access, and the values themselves cannot change for existing fields
+  without invalidating every historical transaction on the ledger
+- `secp256k1` signing correctness is verified by confirming
+  signatures are valid (via this SDK's own `verify`), not by matching
+  another implementation's signature byte-for-byte - RFC 6979
+  guarantees determinism within one implementation, not
+  byte-identical output across different ones
+- `Ed25519` signing, being fully standardized and deterministic, is
+  verified with an exact byte-for-byte match against an independently
+  computed signature instead
+
+### Status
+
+Phase 4 in progress: transaction model, autofill, and signing complete
+and verified (including two full end-to-end scenarios chained from
+real, Phase-1-verified seeds).   
+Not ready for production use.   
+Next: submitting signed transactions to the network (`0.3.3-dev`).
+
 ## 0.3.1-dev
 
 Phase 4 in progress: the transaction model. This is the first
