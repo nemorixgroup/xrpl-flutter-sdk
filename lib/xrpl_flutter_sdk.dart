@@ -38,3 +38,8 @@ export 'src/transactions/models/xrpl_payment.dart';
 export 'src/transactions/models/xrpl_trust_set.dart';
 export 'src/transactions/xrpl_fee_strategy.dart';
 export 'src/transactions/xrpl_autofill.dart';
+export 'src/transactions/binary/xrpl_field_definitions.dart';
+export 'src/transactions/binary/xrpl_binary_primitives.dart';
+export 'src/transactions/binary/xrpl_amount_serializer.dart';
+export 'src/transactions/binary/xrpl_transaction_serializer.dart';
+export 'src/transactions/xrpl_signer.dart';
