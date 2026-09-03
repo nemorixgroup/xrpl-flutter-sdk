@@ -75,4 +75,32 @@ class XrplEd25519 {
       publicKey: Uint8List.fromList(extractedPublicKey.bytes),
     );
   }
+
+  /// Signs [messageHash] with [privateKey] (the 32-byte secret key
+  /// from a derived key pair), producing a 64-byte raw Ed25519
+  /// signature.
+  ///
+  /// Unlike `secp256k1` signatures, no canonicalization is needed
+  /// here: per the official specification, "All valid Ed25519
+  /// signatures are fully canonical," so Ed25519 was never vulnerable
+  /// to the transaction malleability problem `secp256k1` signatures
+  /// require explicit handling for.
+  ///
+  /// Per XRPL's signing process, [messageHash] is expected to already
+  /// be the `SHA-512Half` of the prefixed, serialized transaction
+  /// (the same hash `secp256k1` signing uses) - not the raw
+  /// transaction bytes. `package:cryptography`'s `Ed25519.sign` still
+  /// performs its own standard Ed25519 hashing internally on whatever
+  /// bytes it's given, exactly as it would for any other message;
+  /// XRPL's specific choice is what that "message" happens to be.
+  ///
+  /// See: https://xrpl.org/docs/references/protocol/binary-format
+  static Future<Uint8List> sign(
+    Uint8List messageHash,
+    Uint8List privateKey,
+  ) async {
+    final keyPair = await _algorithm.newKeyPairFromSeed(privateKey);
+    final signature = await _algorithm.sign(messageHash, keyPair: keyPair);
+    return Uint8List.fromList(signature.bytes);
+  }
 }
