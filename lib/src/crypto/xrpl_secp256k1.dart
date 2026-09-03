@@ -155,6 +155,145 @@ class XrplSecp256k1 {
     );
   }
 
+  /// Signs [messageHash] (expected to already be a hash, per XRPL's
+  /// signing process - see `docs-sdk/phase-4/signing/`) with
+  /// [privateKey], producing a DER-encoded, "fully canonical"
+  /// signature as XRPL requires.
+  ///
+  /// "Fully canonical" means, per the official specification: proper
+  /// DER encoding, non-negative R/S values smaller than the curve's
+  /// group order, and - the part a generic ECDSA implementation does
+  /// not guarantee on its own - the *smaller* of the two
+  /// mathematically valid S values (`S` or `N - S`), normalized here
+  /// if the raw signature comes back with the larger one.
+  ///
+  /// Uses RFC 6979 deterministic nonce generation (via pointycastle's
+  /// `HMacDSAKCalculator`), so signing the same hash with the same
+  /// key always produces the same signature - both a security
+  /// best practice (avoids nonce-reuse risks from a weak random
+  /// source) and something independently verifiable against another
+  /// RFC 6979 implementation, which this SDK does before trusting it.
+  ///
+  /// See:
+  /// https://xrpl.org/docs/concepts/transactions/finality-of-results/transaction-malleability
+  static Uint8List sign(Uint8List messageHash, BigInt privateKey) {
+    final signer = ECDSASigner(null, HMac(SHA256Digest(), 64));
+    final privateKeyParam = ECPrivateKey(privateKey, _domainParams);
+    signer.init(true, PrivateKeyParameter(privateKeyParam));
+
+    var signature = signer.generateSignature(messageHash) as ECSignature;
+
+    // Normalize to the smaller of S or N-S ("low-S"), the part of
+    // "fully canonical" a generic ECDSA signer does not enforce on
+    // its own.
+    final halfOrder = _domainParams.n >> 1;
+    if (signature.s > halfOrder) {
+      signature = ECSignature(signature.r, _domainParams.n - signature.s);
+    }
+
+    return _derEncode(signature.r, signature.s);
+  }
+
+  static Uint8List _derEncode(BigInt r, BigInt s) {
+    final rBytes = _derEncodeInteger(r);
+    final sBytes = _derEncodeInteger(s);
+    final sequenceContent = Uint8List.fromList([...rBytes, ...sBytes]);
+    return Uint8List.fromList([
+      0x30, // SEQUENCE tag
+      sequenceContent.length,
+      ...sequenceContent,
+    ]);
+  }
+
+  static Uint8List _derEncodeInteger(BigInt value) {
+    var bytes = _bigIntToMinimalBytes(value);
+    // DER requires a leading 0x00 if the high bit is set, so the
+    // integer is never misread as negative (DER integers are signed).
+    if (bytes.isNotEmpty && (bytes[0] & 0x80) != 0) {
+      bytes = Uint8List.fromList([0x00, ...bytes]);
+    }
+    return Uint8List.fromList([0x02, bytes.length, ...bytes]);
+  }
+
+  static Uint8List _bigIntToMinimalBytes(BigInt value) {
+    if (value == BigInt.zero) return Uint8List.fromList([0]);
+    var hex = value.toRadixString(16);
+    if (hex.length.isOdd) hex = '0$hex';
+    return _hexToBytes(hex);
+  }
+
+  static Uint8List _hexToBytes(String hex) {
+    final result = Uint8List(hex.length ~/ 2);
+    for (var i = 0; i < hex.length; i += 2) {
+      result[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+    }
+    return result;
+  }
+
+  /// Verifies that [derSignature] is a valid signature of
+  /// [messageHash] by the holder of [publicKey].
+  ///
+  /// Accepts any DER-encoded signature that decodes to valid R/S
+  /// values, not only ones this SDK's own [sign] produced - useful
+  /// for confirming interoperability with signatures from other,
+  /// independent implementations, not just testing round-trips
+  /// against itself.
+  static bool verify(
+    Uint8List messageHash,
+    Uint8List derSignature,
+    ECPoint publicKey,
+  ) {
+    final signer = ECDSASigner(null, HMac(SHA256Digest(), 64))
+      ..init(false, PublicKeyParameter(ECPublicKey(publicKey, _domainParams)));
+
+    final (r, s) = _derDecode(derSignature);
+    return signer.verifySignature(messageHash, ECSignature(r, s));
+  }
+
+  static (BigInt, BigInt) _derDecode(Uint8List der) {
+    // der[0] = 0x30 (SEQUENCE), der[1] = total content length.
+    var offset = 2;
+
+    // der[offset] = 0x02 (INTEGER tag) for R.
+    offset++;
+    final rLength = der[offset];
+    offset++;
+    final r = _bytesToBigInt(der.sublist(offset, offset + rLength));
+    offset += rLength;
+
+    // der[offset] = 0x02 (INTEGER tag) for S.
+    offset++;
+    final sLength = der[offset];
+    offset++;
+    final s = _bytesToBigInt(der.sublist(offset, offset + sLength));
+
+    return (r, s);
+  }
+
+  /// Decodes a 33-byte compressed public key (the format
+  /// [XrplSecp256k1KeyPair.compressedPublicKey] produces) back into
+  /// its curve point, the inverse of that compression.
+  ///
+  /// Throws an [XrplCryptoException] if [compressedPublicKey] is not
+  /// exactly 33 bytes, or does not decode to a valid point on the
+  /// secp256k1 curve.
+  static ECPoint decodeCompressedPublicKey(Uint8List compressedPublicKey) {
+    if (compressedPublicKey.length != 33) {
+      throw XrplCryptoException(
+        'compressedPublicKey must be exactly 33 bytes, got '
+        '${compressedPublicKey.length}',
+      );
+    }
+
+    final point = _domainParams.curve.decodePoint(compressedPublicKey);
+    if (point == null) {
+      throw const XrplCryptoException(
+        'compressedPublicKey is not a valid point on the secp256k1 curve.',
+      );
+    }
+    return point;
+  }
+
   /// Shared "hash, validate, retry" loop used for both the root and
   /// (later) the intermediate key pair derivation steps - the two
   /// steps differ only in what bytes are hashed, not in this logic.

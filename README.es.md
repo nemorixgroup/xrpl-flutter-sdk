@@ -46,7 +46,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.3.1-dev
+  xrpl_flutter_sdk: ^0.3.2-dev
 ```
 
 ```bash
@@ -150,6 +150,14 @@ const payment = XrplPayment(
 );
 final ready = await autofill(connection, payment);
 print(ready.fee); // ej. "10"
+```
+
+```dart
+// Firmar una transaccion: se agregan SigningPubKey y TxnSignature,
+// lista para enviarse a la red.
+final filled = await autofill(connection, payment);
+final signed = await sign(filled.toJson(), wallet);
+print(signed['TxnSignature']);
 ```
 
 ## Redes

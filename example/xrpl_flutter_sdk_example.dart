@@ -38,6 +38,7 @@ import 'phase3/connection_example.dart';
 import 'phase3/queries_example.dart';
 import 'phase3/subscriptions_example.dart';
 import 'phase4/transaction_model_example.dart';
+import 'phase4/signing_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -88,4 +89,7 @@ Future<void> main() async {
   // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-4
   print('\n--- 0.3.1-dev: Transaction model & autofill ---');
   await transactionModelExample();
+
+  print('\n--- 0.3.2-dev: Transaction signing ---');
+  await signingExample();
 }

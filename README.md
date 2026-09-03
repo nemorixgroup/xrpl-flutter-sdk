@@ -48,7 +48,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.3.1-dev
+  xrpl_flutter_sdk: ^0.3.2-dev
 ```
 
 ```bash
@@ -152,6 +152,14 @@ const payment = XrplPayment(
 );
 final ready = await autofill(connection, payment);
 print(ready.fee); // e.g. "10"
+```
+
+```dart
+// Sign a transaction: SigningPubKey and TxnSignature are added,
+// ready for submission.
+final filled = await autofill(connection, payment);
+final signed = await sign(filled.toJson(), wallet);
+print(signed['TxnSignature']);
 ```
 
 ## Networks
