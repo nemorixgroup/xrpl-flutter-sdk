@@ -26,6 +26,22 @@ this sub-version's own investigation - see below.
   would have been rejected by the real network. Found and confirmed
   fixed via an extensive investigation (see Design Decisions below and
   `docs-sdk/phase-4/submission/`); `secp256k1` signing was unaffected.
+### Fixed (found via real end-to-end usage, after initial implementation)
+
+- `autofill`'s default `LastLedgerSequence` margin (the official
+  minimum of `+4`) proved too tight under real-world latency; now
+  defaults to `+20` via a new `ledgerOffset` parameter
+- `submitAndWait` compared transaction expiry against `fee()`'s
+  in-progress `ledger_current_index` instead of the latest *validated*
+  ledger, declaring some real, successful transactions expired one
+  ledger too early; fixed to use `serverInfo()`'s `validated_ledger.seq`  
+- `fundTestWallet` returned before the Faucet's funding transaction
+  had actually validated, causing a payment sent immediately
+  afterward to fail; now actively polls `accountInfo` (against the
+  validated ledger specifically) until the account is confirmed to
+  exist. Its signature changed from `fundTestWallet(endpoint, ...)` to
+  `fundTestWallet(connection, ...)`, since confirming funding requires
+  a connection anyway
 
 ### Added
 
