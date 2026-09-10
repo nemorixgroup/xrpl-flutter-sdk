@@ -16,9 +16,19 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 /// reported values to use; defaults to [XrplFeeStrategy.openLedger],
 /// the official recommendation for reliable, prompt inclusion.
 ///
-/// `lastLedgerSequence` is set to the current ledger index plus 4,
-/// the minimum official recommendation from "Reliable Transaction
-/// Submission" for automated processes.
+/// `lastLedgerSequence` is set to the current ledger index plus
+/// [ledgerOffset] (default `20`, roughly 60-100 seconds at XRPL's
+/// typical ~3-5 second ledger close time). The official "Reliable
+/// Transaction Submission" documentation states `4` as the *minimum*
+/// automated processes should use, not a recommended default - real
+/// client libraries commonly use a larger buffer in practice (for
+/// example, `ripple-lib`, `xrpl.js`'s predecessor, defaulted to `8`).
+/// `20` was chosen after a real transaction expired with the bare
+/// minimum of `4`, cutting it too close under genuine network
+/// latency from the extra `accountInfo`/`fee` lookups this function
+/// itself performs. Pass a smaller [ledgerOffset] (down to the
+/// official minimum of `4`) if a faster, more deterministic
+/// expiration is actually wanted.
 ///
 /// Any field already set on [transaction] is left as-is - `autofill`
 /// only fills in what's missing, the same behavior `xrpl.js`
@@ -45,14 +55,11 @@ Future<T> autofill<T extends XrplTransaction>(
   XrplConnection connection,
   T transaction, {
   XrplFeeStrategy feeStrategy = XrplFeeStrategy.openLedger,
+  int ledgerOffset = 20,
 }) async {
-  // Look up the account's current sequence number, unless the caller
-  // already provided one explicitly.
   final sequence = transaction.sequence ??
       await _lookUpSequence(connection, transaction.account);
 
-  // Look up the fee and current ledger index together - the fee
-  // command's response conveniently includes both in one call.
   final String feeValue;
   final int? lastLedgerSequence;
   if (transaction.fee != null && transaction.lastLedgerSequence != null) {
@@ -63,14 +70,9 @@ Future<T> autofill<T extends XrplTransaction>(
     final drops = feeInfo['drops'] as Map<String, dynamic>;
     feeValue = transaction.fee ?? _feeFor(feeStrategy, drops);
     lastLedgerSequence = transaction.lastLedgerSequence ??
-        (feeInfo['ledger_current_index'] as int) + 4;
+        (feeInfo['ledger_current_index'] as int) + ledgerOffset;
   }
 
-  // The cast back to T is safe: every concrete XrplTransaction
-  // subtype overrides copyWith to return its own type (for example,
-  // XrplPayment.copyWith returns XrplPayment), so the runtime type
-  // here always matches T - the interface just can't express that
-  // relationship statically.
   return transaction.copyWith(
     sequence: sequence,
     fee: feeValue,
