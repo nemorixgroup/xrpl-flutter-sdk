@@ -31,15 +31,17 @@ void main() {
         algorithm: XrplKeyAlgorithm.ed25519,
       );
 
-      final wallet = await fundTestWallet(
-        XrplEndpoint.testnet,
-        wallet: existingWallet,
-      );
-
-      expect(wallet.classicAddress, existingWallet.classicAddress);
-
       final connection = XrplConnection(XrplEndpoint.testnet);
       await connection.connect();
+
+      // fundTestWallet(connection) without the `wallet` parameter
+      // would generate a brand-new wallet every time - here we
+      // deliberately pass `wallet` to reuse and top up the same
+      // account on every run, instead of creating an ever-growing
+      // pile of one-off funded accounts on the public Testnet.
+      final wallet = await fundTestWallet(connection, wallet: existingWallet);
+
+      expect(wallet.classicAddress, existingWallet.classicAddress);
 
       final accountData = await accountInfo(connection, wallet.classicAddress);
       final balance = int.parse(accountData['Balance'] as String);
