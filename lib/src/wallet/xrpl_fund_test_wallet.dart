@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_endpoint.dart';
+import 'package:xrpl_flutter_sdk/src/connection/xrpl_queries.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_key_algorithm.dart';
 import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
@@ -23,26 +25,45 @@ import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
 /// only ever sees the public address. If omitted, a new wallet is
 /// generated using [algorithm] and funded.
 ///
+/// Requires [connection] to already be open, and takes its target
+/// network from `connection.endpoint`. This is more than just a
+/// convenience: after the Faucet's HTTP response confirms the
+/// funding request was accepted, this function actively polls
+/// `accountInfo` on that same connection until the account genuinely
+/// exists on a validated ledger, before returning. A real bug this
+/// SDK hit confirms why this matters - the Faucet's HTTP response
+/// only means the funding *request* was accepted, not that the
+/// funding transaction has validated yet; sending a transaction
+/// immediately from a wallet funded this way, without this wait, can
+/// fail because the account doesn't genuinely exist yet from the
+/// connected server's point of view. See
+/// `docs-sdk/phase-4/submission/` for the full investigation.
+///
 /// There is no Mainnet Faucet, and there never will be - Mainnet XRP
 /// has real value, so nothing gives it away for free. Calling this
-/// with [XrplEndpoint.mainnet] throws immediately, rather than
+/// with a Mainnet connection throws immediately, rather than
 /// attempting a request that could only fail confusingly.
 ///
-/// Throws an [XrplConnectionException] if [endpoint] is
-/// [XrplEndpoint.mainnet], or if the Faucet request itself fails.
+/// Throws an [XrplConnectionException] if `connection.endpoint` is
+/// [XrplEndpoint.mainnet], if the Faucet request itself fails, or if
+/// the funded account still hasn't appeared after a reasonable
+/// number of confirmation attempts.
 ///
 /// Example:
 /// ```dart
-/// final wallet = await fundTestWallet(XrplEndpoint.testnet);
-/// print(wallet.classicAddress); // funded, ready to use
+/// final connection = XrplConnection(XrplEndpoint.testnet);
+/// await connection.connect();
+/// final wallet = await fundTestWallet(connection);
+/// print(wallet.classicAddress); // funded and confirmed, ready to use
 /// ```
 ///
 /// See: https://xrpl.org/docs/tools/xrp-faucets
 Future<XrplWallet> fundTestWallet(
-  XrplEndpoint endpoint, {
+  XrplConnection connection, {
   XrplWallet? wallet,
   XrplKeyAlgorithm algorithm = XrplKeyAlgorithm.ed25519,
 }) async {
+  final endpoint = connection.endpoint;
   if (endpoint == XrplEndpoint.mainnet) {
     throw const XrplConnectionException(
       'fundTestWallet is only available for testnet and devnet - '
@@ -75,5 +96,29 @@ Future<XrplWallet> fundTestWallet(
     );
   }
 
-  return targetWallet;
+  // The Faucet's HTTP response only confirms the funding request was
+  // accepted - not that the funding transaction has validated yet.
+  // Poll accountInfo until the account genuinely exists, rather than
+  // trusting the HTTP response alone.
+  const maxAttempts = 15;
+  const attemptDelay = Duration(seconds: 1);
+  for (var attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await accountInfo(
+        connection,
+        targetWallet.classicAddress,
+        ledgerIndex: 'validated',
+      );
+      return targetWallet;
+    } on XrplConnectionException catch (error) {
+      if (!error.message.contains('actNotFound')) rethrow;
+      await Future<void>.delayed(attemptDelay);
+    }
+  }
+
+  throw XrplConnectionException(
+    'Faucet accepted the funding request for '
+    '${targetWallet.classicAddress}, but the account did not appear '
+    'on a validated ledger after $maxAttempts attempts.',
+  );
 }
