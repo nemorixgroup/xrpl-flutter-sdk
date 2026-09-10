@@ -48,8 +48,16 @@ void main() {
     // already verified in Phase 1 (xrpl_ed25519_test.dart). Ed25519
     // signing is fully deterministic per RFC 8032, so this test
     // expects an exact byte-for-byte match against a signature
-    // independently computed via Python's pynacl (libsodium) - not
-    // just a validity check, unlike the secp256k1 case above.
+    // independently computed via Python's pynacl (libsodium).
+    //
+    // The expected signature here signs the raw, prefixed, serialized
+    // transaction bytes DIRECTLY - not their SHA-512Half hash, unlike
+    // secp256k1. This was corrected during the 0.3.3-dev submission
+    // investigation: Ed25519 (EdDSA) performs its own internal
+    // SHA-512 hashing as part of the algorithm, so pre-hashing before
+    // signing was a real bug, confirmed by comparing against xrpl.js's
+    // own internal signing data. See docs-sdk/phase-4/submission/ for
+    // the full investigation.
     test('matches the independently computed TxnSignature exactly', () async {
       final wallet = await XrplWallet.fromSeed(
         'sEdTM1uX8pu2do5XvTnutH6HsouMaM2',
@@ -72,8 +80,8 @@ void main() {
       );
       expect(
         signed['TxnSignature'],
-        'A8ADE756C292305CB6FAA8ACD671C0E637E9474530C8C7D8F26268A299BA87'
-        '4A12EE40E231BC47F3A160F6A0310B1B90CE35C67A6EE28C7916DD335650FB9E02',
+        '6C585F7744FA816C8CC3205344EEAAE9BA50EE4A4A9AFC0870D2ABF92EBBC3D'
+        'D1BA7AF83D7F01575CD0B1AB91A0B26A2244938911E4A9EC41DE0C92961D09A04',
       );
     });
   });

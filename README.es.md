@@ -46,7 +46,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.3.2-dev
+  xrpl_flutter_sdk: ^0.3.3-dev
 ```
 
 ```bash
@@ -158,6 +158,18 @@ print(ready.fee); // ej. "10"
 final filled = await autofill(connection, payment);
 final signed = await sign(filled.toJson(), wallet);
 print(signed['TxnSignature']);
+```
+
+```dart
+// La forma mas simple de enviar XRP: construye, autofilla, firma,
+// envia, y espera confirmacion, todo en una sola llamada.
+final result = await sendPayment(
+  connection,
+  senderWallet: wallet,
+  destinationAddress: 'rSomeRecipientAddress...',
+  amountDrops: '10000000', // 10 XRP
+);
+print(result['meta']['TransactionResult']); // ej. "tesSUCCESS"
 ```
 
 ## Redes

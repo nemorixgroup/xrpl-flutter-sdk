@@ -39,6 +39,7 @@ import 'phase3/queries_example.dart';
 import 'phase3/subscriptions_example.dart';
 import 'phase4/transaction_model_example.dart';
 import 'phase4/signing_example.dart';
+import 'phase4/submission_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -92,4 +93,10 @@ Future<void> main() async {
 
   print('\n--- 0.3.2-dev: Transaction signing ---');
   await signingExample();
+
+  print('\n--- 0.3.3-dev: Submission (Option 1 - simple) ---');
+  await simplePaymentExample();
+
+  print('\n--- 0.3.3-dev: Submission (Option 2 - detailed) ---');
+  await detailedPaymentExample();
 }

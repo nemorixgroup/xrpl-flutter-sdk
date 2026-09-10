@@ -48,7 +48,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.3.2-dev
+  xrpl_flutter_sdk: ^0.3.3-dev
 ```
 
 ```bash
@@ -160,6 +160,18 @@ print(ready.fee); // e.g. "10"
 final filled = await autofill(connection, payment);
 final signed = await sign(filled.toJson(), wallet);
 print(signed['TxnSignature']);
+```
+
+```dart
+// The simplest way to send XRP: builds, autofills, signs, submits,
+// and waits for confirmation, all in one call.
+final result = await sendPayment(
+  connection,
+  senderWallet: wallet,
+  destinationAddress: 'rSomeRecipientAddress...',
+  amountDrops: '10000000', // 10 XRP
+);
+print(result['meta']['TransactionResult']); // e.g. "tesSUCCESS"
 ```
 
 ## Networks

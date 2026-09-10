@@ -5,6 +5,104 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.3-dev
+
+**Phase 4 complete pipeline.** This sub-version closes the loop
+started in `0.3.1-dev`: build, autofill, sign, submit, and confirm a
+transaction end to end, including a convenience layer for the common
+case of "just send XRP." It also fixes a serious bug found during
+this sub-version's own investigation - see below.
+
+### Fixed
+
+- **Ed25519-signed transactions were cryptographically invalid.**
+  `sign()` was pre-hashing the transaction with `SHA-512Half` before
+  handing it to `XrplEd25519.sign()`, but XRPL's actual signing
+  process for Ed25519 signs the raw, prefixed, serialized transaction
+  directly, Ed25519 performs its own internal `SHA-512` hashing as
+  part of the algorithm, unlike `secp256k1`, which genuinely requires
+  a pre-hashed digest (`ECDSA` can only sign a fixed-size input).
+  Every Ed25519-signed transaction this SDK produced before this fix
+  would have been rejected by the real network. Found and confirmed
+  fixed via an extensive investigation (see Design Decisions below and
+  `docs-sdk/phase-4/submission/`); `secp256k1` signing was unaffected.
+### Fixed (found via real end-to-end usage, after initial implementation)
+
+- `autofill`'s default `LastLedgerSequence` margin (the official
+  minimum of `+4`) proved too tight under real-world latency; now
+  defaults to `+20` via a new `ledgerOffset` parameter
+- `submitAndWait` compared transaction expiry against `fee()`'s
+  in-progress `ledger_current_index` instead of the latest *validated*
+  ledger, declaring some real, successful transactions expired one
+  ledger too early; fixed to use `serverInfo()`'s `validated_ledger.seq`  
+- `fundTestWallet` returned before the Faucet's funding transaction
+  had actually validated, causing a payment sent immediately
+  afterward to fail; now actively polls `accountInfo` (against the
+  validated ledger specifically) until the account is confirmed to
+  exist. Its signature changed from `fundTestWallet(endpoint, ...)` to
+  `fundTestWallet(connection, ...)`, since confirming funding requires
+  a connection anyway
+
+### Added
+
+- `transactionHash(signedTransactionJson)`: computes a signed
+  transaction's identifying hash, using the distinct "signed
+  transaction" prefix (`0x54584E00`), confirmed against two
+  independent sources
+- `tx(connection, transactionHash)`, `submit(connection, txBlob, {failHard})`
+  in `xrpl_queries.dart`: the official transaction-status lookup and
+  submission commands
+- `fundTestWallet(endpoint, {wallet, algorithm})`: funds a wallet via
+  the official Testnet/Devnet Faucet HTTP API; explicitly rejects
+  Mainnet, since no Faucet exists there
+- `submitAndWait(connection, signedTransactionJson, {pollInterval})`:
+  submits and polls `tx` until the result is final, following the
+  official "Reliable Transaction Submission" pattern - not an
+  official XRPL command, a client-side convenience matching `xrpl.js`
+- `sendTransaction<T extends XrplTransaction>(connection, transaction, wallet)`:
+  the full pipeline (autofill, sign, submitAndWait) in one call, for
+  any supported transaction type
+- `sendPayment(connection, {senderWallet, destinationAddress, amountDrops, destinationTag})`:
+  built on `sendTransaction`, the simplest possible way to send XRP
+- 12 new tests (217 -> 229), including live integration tests against
+  the real public Testnet server - among them, two real, successful
+  XRP payments (`tesSUCCESS`), fully confirmed on-ledger
+
+### Design Decisions
+
+- **The Ed25519 signing bug investigation**: an unfunded-wallet
+  submission test consistently failed with `invalidTransaction` /
+  "Invalid signature" on two independently-operated Testnet servers
+  (classic `rippled` and `Clio`), despite the signature being
+  mathematically self-consistent by every check this SDK could run
+  against itself (structure, hash, and signature independently
+  verified byte-for-byte against Python multiple times). The
+  investigation ruled out every hypothesis testable from within the
+  SDK (fresh vs. seed-restored wallets, unfunded vs. real funded
+  accounts via the Testnet Faucet) before installing `xrpl.js` and
+  comparing its own internal `encodeForSigning()` output directly,
+  byte-for-byte identical to this SDK's - which narrowed the question
+  to exactly one remaining step: what gets hashed before signing.
+  Testing both hypotheses directly against a real `xrpl.js`-produced
+  signature confirmed the fix
+- `submitAndWait` polls via the `tx` method (matching the official
+  documented pattern), not the subscription streams built in Phase 3
+  - simpler, and doesn't require an active subscription for the
+  entire waiting period
+- `sendPayment`'s parameters are named `senderWallet`/`destinationAddress`,
+  not a bare `wallet`/`destination` - a full wallet (holds a private
+  key) and a plain address string are different enough concepts to
+  warrant differently-named parameters, not just different types
+
+### Status
+
+**Phase 4's full transaction pipeline is complete**: build, autofill,
+sign, submit, and confirm - verified end to end with real, successful
+transactions on the public Testnet, for both signing algorithms.   
+Not ready for production use.   
+Next: Phase 4 closing audit, including the deferred
+`XrplHexCodec` consolidation, closing at `0.4.0-dev`.
+
 ## 0.3.2-dev
 
 Phase 4 in progress: transaction signing. This is the largest and
