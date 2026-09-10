@@ -173,3 +173,86 @@ Future<Map<String, dynamic>> fee(XrplConnection connection) async {
   }
   return resultRaw;
 }
+
+/// Requests information about a single transaction, by its
+/// identifying [transactionHash].
+///
+/// The response includes a `validated` field: `false` (or absent)
+/// means the result is still provisional, `true` means it's final -
+/// see `docs-sdk/phase-4/submission/` for how `submitAndWait` uses
+/// this to know when to stop polling.
+///
+/// Throws an `XrplConnectionException` (via [XrplConnection.request])
+/// if not connected, the request times out, or - notably - if the
+/// transaction hasn't been seen by this server yet (`txnNotFound`,
+/// which is an expected, normal outcome while waiting for a recently
+/// submitted transaction to propagate, not necessarily a real error).
+///
+/// Example:
+/// ```dart
+/// final result = await tx(connection, transactionHash);
+/// print(result['validated']); // true, once final
+/// ```
+///
+/// See:
+/// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/transaction-methods/tx
+Future<Map<String, dynamic>> tx(
+  XrplConnection connection,
+  String transactionHash,
+) async {
+  final response = await connection.request('tx', {
+    'transaction': transactionHash,
+  });
+
+  final result = response['result'];
+  // Same defensive, intentionally-untested pattern as serverInfo,
+  // accountInfo, and fee above (see docs-sdk/phase-3/closing-audit/
+  // for why).
+  if (result is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected tx response shape: missing or invalid "result" field.',
+    );
+  }
+  return result;
+}
+
+/// Submits a signed transaction ([txBlob], as hex) to the network.
+///
+/// This only reports a *preliminary* result (`engine_result`, for
+/// example `"tesSUCCESS"`) - it does not mean the transaction is
+/// permanently part of the ledger yet. See `submitAndWait` for
+/// waiting until the result is final.
+///
+/// If [failHard] is `true`, the server will not retry or relay the
+/// transaction if it fails locally; defaults to `false`, matching the
+/// official default.
+///
+/// Throws an `XrplConnectionException` (via [XrplConnection.request])
+/// if not connected or the request times out.
+///
+/// Example:
+/// ```dart
+/// final result = await submit(connection, txBlobHex);
+/// print(result['engine_result']); // e.g. "tesSUCCESS"
+/// ```
+///
+/// See:
+/// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/transaction-methods/submit
+Future<Map<String, dynamic>> submit(
+  XrplConnection connection,
+  String txBlob, {
+  bool failHard = false,
+}) async {
+  final response = await connection.request('submit', {
+    'tx_blob': txBlob,
+    'fail_hard': failHard,
+  });
+
+  final result = response['result'];
+  if (result is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected submit response shape: missing or invalid "result" field.',
+    );
+  }
+  return result;
+}
