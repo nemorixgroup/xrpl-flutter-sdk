@@ -17,9 +17,20 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction_hash.dart';
 /// Follows the official "Reliable Transaction Submission" pattern:
 /// submit once, then poll `tx` by the transaction's hash until either
 /// `"validated": true` appears (the result - success or failure - is
-/// final), or the current ledger passes [signedTransactionJson]'s
-/// `LastLedgerSequence` without that happening (the transaction was
-/// not included and can be considered expired).
+/// final), or the latest **validated** ledger passes
+/// [signedTransactionJson]'s `LastLedgerSequence` without that
+/// happening (the transaction was not included and can be considered
+/// expired).
+///
+/// The expiry check specifically uses `serverInfo`'s
+/// `validated_ledger.seq`, not `fee`'s `ledger_current_index` - the
+/// latter is the ledger currently being built (in progress, not yet
+/// validated), always at least one ahead of the latest validated
+/// ledger. Comparing against it declared transactions expired one
+/// ledger too early in practice, confirmed by a real transaction that
+/// genuinely validated successfully but was reported as expired by
+/// this function before this fix - see
+/// `docs-sdk/phase-4/submission/` for the full investigation.
 ///
 /// A `tx` lookup that returns `txnNotFound` is expected and normal
 /// while waiting for a recently submitted transaction to propagate -
@@ -32,9 +43,9 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction_hash.dart';
 ///
 /// Throws an [XrplConnectionException] if [signedTransactionJson] has
 /// no `LastLedgerSequence` (needed to know when to stop waiting), if
-/// the transaction's `LastLedgerSequence` is passed without the
-/// transaction being validated, or if `submit`/`tx`/`fee` themselves
-/// throw for any other reason.
+/// the transaction's `LastLedgerSequence` is passed by the latest
+/// validated ledger without the transaction being validated, or if
+/// `submit`/`tx`/`serverInfo` themselves throw for any other reason.
 ///
 /// Example:
 /// ```dart
@@ -44,8 +55,7 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction_hash.dart';
 /// print(result['meta']['TransactionResult']); // e.g. "tesSUCCESS"
 /// ```
 ///
-/// See:
-/// https://xrpl.org/docs/concepts/transactions/reliable-transaction-submission
+/// See: https://xrpl.org/docs/concepts/transactions/reliable-transaction-submission
 Future<Map<String, dynamic>> submitAndWait(
   XrplConnection connection,
   Map<String, dynamic> signedTransactionJson, {
@@ -74,9 +84,6 @@ Future<Map<String, dynamic>> submitAndWait(
     try {
       result = await tx(connection, txHash);
     } on XrplConnectionException catch (error) {
-      // txnNotFound is expected while a recently submitted
-      // transaction is still propagating - keep polling. Any other
-      // error is a real failure and should surface immediately.
       if (!error.message.contains('txnNotFound')) rethrow;
     }
 
@@ -84,14 +91,16 @@ Future<Map<String, dynamic>> submitAndWait(
       return result;
     }
 
-    final feeInfo = await fee(connection);
-    final currentLedger = feeInfo['ledger_current_index'] as int;
-    if (currentLedger > lastLedgerSequence) {
+    final info = await serverInfo(connection);
+    final validatedLedger = info['validated_ledger'] as Map<String, dynamic>;
+    final latestValidatedLedger = validatedLedger['seq'] as int;
+
+    if (latestValidatedLedger > lastLedgerSequence) {
       throw XrplConnectionException(
         'Transaction $txHash was not validated before its '
-        'LastLedgerSequence ($lastLedgerSequence) was passed '
-        '(current ledger: $currentLedger) - it was likely not '
-        'included in the ledger.',
+        'LastLedgerSequence ($lastLedgerSequence) was passed by the '
+        'latest validated ledger ($latestValidatedLedger) - it was '
+        'likely not included in the ledger.',
       );
     }
 
