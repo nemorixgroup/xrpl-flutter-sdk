@@ -76,9 +76,15 @@ class XrplEd25519 {
     );
   }
 
-  /// Signs [messageHash] with [privateKey] (the 32-byte secret key
-  /// from a derived key pair), producing a 64-byte raw Ed25519
-  /// signature.
+  /// Signs [message] with [privateKey] (the 32-byte secret key from a
+  /// derived key pair), producing a 64-byte raw Ed25519 signature.
+  ///
+  /// This is a generic Ed25519 primitive: it signs whatever bytes
+  /// [message] contains, using standard Ed25519 (which performs its
+  /// own internal `SHA-512` hashing as part of the algorithm - it
+  /// does not require, and should not be given, a pre-hashed digest).
+  /// It is the caller's responsibility to pass the correct bytes for
+  /// their use case.
   ///
   /// Unlike `secp256k1` signatures, no canonicalization is needed
   /// here: per the official specification, "All valid Ed25519
@@ -86,21 +92,23 @@ class XrplEd25519 {
   /// to the transaction malleability problem `secp256k1` signatures
   /// require explicit handling for.
   ///
-  /// Per XRPL's signing process, [messageHash] is expected to already
-  /// be the `SHA-512Half` of the prefixed, serialized transaction
-  /// (the same hash `secp256k1` signing uses) - not the raw
-  /// transaction bytes. `package:cryptography`'s `Ed25519.sign` still
-  /// performs its own standard Ed25519 hashing internally on whatever
-  /// bytes it's given, exactly as it would for any other message;
-  /// XRPL's specific choice is what that "message" happens to be.
+  /// For XRPL transaction signing specifically: unlike `secp256k1`
+  /// (which must sign a `SHA-512Half` digest, since ECDSA can only
+  /// sign a fixed-size input), Ed25519 signs the prefixed, serialized
+  /// transaction bytes directly, with no separate pre-hashing step -
+  /// confirmed during the `0.3.3-dev` submission investigation by
+  /// comparing against `xrpl.js`'s own internal signing data. See
+  /// `docs-sdk/phase-4/submission/` for the full investigation, and
+  /// `sign()` in `xrpl_signer.dart` for where this distinction is
+  /// applied.
   ///
   /// See: https://xrpl.org/docs/references/protocol/binary-format
   static Future<Uint8List> sign(
-    Uint8List messageHash,
+    Uint8List message,
     Uint8List privateKey,
   ) async {
     final keyPair = await _algorithm.newKeyPairFromSeed(privateKey);
-    final signature = await _algorithm.sign(messageHash, keyPair: keyPair);
+    final signature = await _algorithm.sign(message, keyPair: keyPair);
     return Uint8List.fromList(signature.bytes);
   }
 }

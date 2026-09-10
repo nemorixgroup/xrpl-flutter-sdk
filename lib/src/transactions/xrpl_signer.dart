@@ -28,12 +28,18 @@ const List<int> _singleSigningPrefix = [0x53, 0x54, 0x58, 0x00];
 /// The signing process, per the official specification:
 /// 1. Add `SigningPubKey` (required before serializing for signing).
 /// 2. Serialize to canonical binary format.
-/// 3. Prepend the single-signing prefix (`0x53545800`) and hash with
-///    `SHA-512Half` - the same process for both signing algorithms
-///    the XRP Ledger supports.
-/// 4. Sign that hash with [wallet]'s private key - `secp256k1`
-///    (DER-encoded, fully canonical) or Ed25519 (raw 64 bytes,
-///    always canonical), depending on `wallet.algorithm`.
+/// 3. Prepend the single-signing prefix (`0x53545800`).
+/// 4. Sign that data with [wallet]'s private key - the two supported
+///    algorithms differ here, confirmed by directly comparing against
+///    `xrpl.js`'s own internal signing data (see
+///    `docs-sdk/phase-4/submission/` for the full investigation):
+///    - `secp256k1` (ECDSA) can only sign a fixed-size digest, so the
+///      prefixed data is hashed with `SHA-512Half` first, then that
+///      hash is signed (DER-encoded, fully canonical).
+///    - `Ed25519` (EdDSA) signs messages of arbitrary length
+///      directly - it performs its own internal `SHA-512` hashing as
+///      part of the algorithm, so the prefixed data is signed as-is,
+///      with no separate pre-hashing step.
 /// 5. Add `TxnSignature` (the signature, as uppercase hex) to the map.
 ///
 /// Example:
@@ -59,15 +65,24 @@ Future<Map<String, dynamic>> sign(
     ..._singleSigningPrefix,
     ...serialized,
   ]);
-  final messageHash = XrplHash.sha512Half(prefixed);
 
   final Uint8List signatureBytes;
   if (wallet.algorithm == XrplKeyAlgorithm.secp256k1) {
+    // secp256k1 (ECDSA) can only sign a fixed-size digest, so the
+    // prefixed transaction bytes are hashed first.
+    final messageHash = XrplHash.sha512Half(prefixed);
     final privateKeyInt = _bytesToBigInt(wallet.privateKeyBytes);
     signatureBytes = XrplSecp256k1.sign(messageHash, privateKeyInt);
   } else {
+    // Ed25519 (EdDSA) signs messages of arbitrary length directly -
+    // it performs its own internal SHA-512 hashing as part of the
+    // algorithm. XRPL does NOT pre-hash with SHA-512Half for Ed25519,
+    // unlike secp256k1 - confirmed by decoding xrpl.js's own
+    // internal signing data and testing both hypotheses directly
+    // against a real, independently-computed signature. See
+    // docs-sdk/phase-4/submission/ for the full investigation.
     signatureBytes = await XrplEd25519.sign(
-      messageHash,
+      prefixed,
       wallet.privateKeyBytes,
     );
   }
