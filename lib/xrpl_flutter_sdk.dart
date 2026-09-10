@@ -43,3 +43,8 @@ export 'src/transactions/binary/xrpl_binary_primitives.dart';
 export 'src/transactions/binary/xrpl_amount_serializer.dart';
 export 'src/transactions/binary/xrpl_transaction_serializer.dart';
 export 'src/transactions/xrpl_signer.dart';
+export 'src/wallet/xrpl_fund_test_wallet.dart';
+export 'src/transactions/xrpl_transaction_hash.dart';
+export 'src/transactions/xrpl_submit_and_wait.dart';
+export 'src/transactions/xrpl_send_transaction.dart';
+export 'src/transactions/xrpl_send_payment.dart';
