@@ -22,8 +22,11 @@ import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
 ///
 /// If [wallet] is provided, the Faucet funds that exact address -
 /// this SDK generates and keeps the private key itself, the Faucet
-/// only ever sees the public address. If omitted, a new wallet is
-/// generated using [algorithm] and funded.
+/// only ever sees the public address. [algorithm] is ignored in this
+/// case (it only affects the wallet generated when [wallet] is
+/// omitted) - an existing wallet's algorithm was already decided when
+/// it was created. If [wallet] is omitted, a new wallet is generated
+/// using [algorithm] and funded.
 ///
 /// Requires [connection] to already be open, and takes its target
 /// network from `connection.endpoint`. This is more than just a
@@ -39,15 +42,21 @@ import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
 /// connected server's point of view. See
 /// `docs-sdk/phase-4/submission/` for the full investigation.
 ///
+/// [maxAttempts] and [attemptDelay] control that confirmation
+/// polling: up to [maxAttempts] tries, waiting [attemptDelay] between
+/// each, before giving up. Defaults (`15` attempts, `1` second apart)
+/// are generous for typical XRPL ledger close times (~3-5 seconds).
+///
 /// There is no Mainnet Faucet, and there never will be - Mainnet XRP
 /// has real value, so nothing gives it away for free. Calling this
 /// with a Mainnet connection throws immediately, rather than
 /// attempting a request that could only fail confusingly.
 ///
 /// Throws an [XrplConnectionException] if `connection.endpoint` is
-/// [XrplEndpoint.mainnet], if the Faucet request itself fails, or if
-/// the funded account still hasn't appeared after a reasonable
-/// number of confirmation attempts.
+/// [XrplEndpoint.mainnet], if [maxAttempts] or [attemptDelay] is not
+/// positive, if the Faucet request itself fails, or if the funded
+/// account still hasn't appeared after [maxAttempts] confirmation
+/// attempts.
 ///
 /// Example:
 /// ```dart
@@ -62,12 +71,25 @@ Future<XrplWallet> fundTestWallet(
   XrplConnection connection, {
   XrplWallet? wallet,
   XrplKeyAlgorithm algorithm = XrplKeyAlgorithm.ed25519,
+  int maxAttempts = 15,
+  Duration attemptDelay = const Duration(seconds: 1),
 }) async {
   final endpoint = connection.endpoint;
   if (endpoint == XrplEndpoint.mainnet) {
     throw const XrplConnectionException(
       'fundTestWallet is only available for testnet and devnet - '
       'there is no faucet for mainnet, since Mainnet XRP has real value.',
+    );
+  }
+
+  if (maxAttempts <= 0) {
+    throw XrplConnectionException(
+      'maxAttempts must be positive, got $maxAttempts',
+    );
+  }
+  if (attemptDelay <= Duration.zero) {
+    throw XrplConnectionException(
+      'attemptDelay must be positive, got $attemptDelay',
     );
   }
 
@@ -100,8 +122,6 @@ Future<XrplWallet> fundTestWallet(
   // accepted - not that the funding transaction has validated yet.
   // Poll accountInfo until the account genuinely exists, rather than
   // trusting the HTTP response alone.
-  const maxAttempts = 15;
-  const attemptDelay = Duration(seconds: 1);
   for (var attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       await accountInfo(

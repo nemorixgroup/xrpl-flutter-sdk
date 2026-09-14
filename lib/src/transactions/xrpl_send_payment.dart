@@ -18,6 +18,12 @@ import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
 /// key, since sending funds never requires access to the recipient's
 /// keys, only their address.
 ///
+/// The transaction's `Account` is always set to
+/// `senderWallet.classicAddress` internally, so `sign()`'s
+/// Account-mismatch check (see `sign` for why that exists) can never
+/// trigger from a call to this function - there's no way for the two
+/// to disagree.
+///
 /// [amountDrops] is the amount to send, in drops (1 XRP = 1,000,000
 /// drops). [destinationTag] is optional, for destinations that share
 /// one account across many recipients (for example, an exchange).

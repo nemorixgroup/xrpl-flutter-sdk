@@ -24,7 +24,7 @@ import 'package:xrpl_flutter_sdk/src/transactions/binary/xrpl_field_definitions.
 /// ID - confirmed against the official worked example, where
 /// comparing encoded bytes directly would have sorted `Expiration`
 /// and `OfferSequence` incorrectly relative to each other (see
-/// `docs-sdk/phase-4/binary-serialization/` for the full case).
+/// `docs-sdk/phase-4/signing/` for the full case).
 ///
 /// See: https://xrpl.org/docs/references/protocol/binary-format
 class XrplTransactionSerializer {
@@ -36,16 +36,19 @@ class XrplTransactionSerializer {
   ///
   /// Throws an [XrplCryptoException] if [json] contains a field this
   /// SDK doesn't yet know how to serialize (support is limited to
-  /// what `XrplPayment` and `XrplTrustSet` currently need), or if any
-  /// field's value fails its own encoder's validation (for example,
-  /// an invalid address or amount).
+  /// what `XrplPayment` and `XrplTrustSet` currently need), if a
+  /// field's value has an unexpected type (for example, `Sequence` as
+  /// a `String` instead of an `int` - this can only happen if [json]
+  /// was built by hand rather than via `toJson()`), or if any field's
+  /// value fails its own encoder's validation (for example, an
+  /// invalid address or amount).
   static Uint8List serialize(Map<String, dynamic> json) {
     final entries = <_FieldEntry>[];
 
     void addIfPresent(
       String key,
       XrplFieldDefinition definition,
-      Uint8List Function(dynamic value) encode,
+      Uint8List Function(Object? value) encode,
     ) {
       if (json.containsKey(key)) {
         entries.add(_FieldEntry(definition, encode(json[key])));
@@ -56,43 +59,45 @@ class XrplTransactionSerializer {
       'TransactionType',
       XrplFieldDefinitions.transactionType,
       (v) => XrplBinaryPrimitives.encodeUInt16(
-        _transactionTypeCode(v as String),
+        _transactionTypeCode(_asString(v, 'TransactionType')),
       ),
     );
     addIfPresent(
       'Flags',
       XrplFieldDefinitions.flags,
-      (v) => XrplBinaryPrimitives.encodeUInt32(v as int),
+      (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'Flags')),
     );
     addIfPresent(
       'Sequence',
       XrplFieldDefinitions.sequence,
-      (v) => XrplBinaryPrimitives.encodeUInt32(v as int),
+      (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'Sequence')),
     );
     addIfPresent(
       'DestinationTag',
       XrplFieldDefinitions.destinationTag,
-      (v) => XrplBinaryPrimitives.encodeUInt32(v as int),
+      (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'DestinationTag')),
     );
     addIfPresent(
       'LastLedgerSequence',
       XrplFieldDefinitions.lastLedgerSequence,
-      (v) => XrplBinaryPrimitives.encodeUInt32(v as int),
+      (v) => XrplBinaryPrimitives.encodeUInt32(
+        _asInt(v, 'LastLedgerSequence'),
+      ),
     );
     addIfPresent(
       'SigningPubKey',
       XrplFieldDefinitions.signingPubKey,
-      (v) => XrplBinaryPrimitives.encodeBlob(v as String),
+      (v) => XrplBinaryPrimitives.encodeBlob(_asString(v, 'SigningPubKey')),
     );
     addIfPresent(
       'TxnSignature',
       XrplFieldDefinitions.txnSignature,
-      (v) => XrplBinaryPrimitives.encodeBlob(v as String),
+      (v) => XrplBinaryPrimitives.encodeBlob(_asString(v, 'TxnSignature')),
     );
     addIfPresent(
       'Fee',
       XrplFieldDefinitions.fee,
-      (v) => XrplAmountSerializer.encodeXrpAmount(v as String),
+      (v) => XrplAmountSerializer.encodeXrpAmount(_asString(v, 'Fee')),
     );
     addIfPresent(
       'Amount',
@@ -100,22 +105,22 @@ class XrplTransactionSerializer {
       // Amount is XRP-only for this SDK's current scope (see
       // XrplPayment's own scope note) - always a plain drops string,
       // never an issued-currency object, for this field specifically.
-      (v) => XrplAmountSerializer.encodeXrpAmount(v as String),
+      (v) => XrplAmountSerializer.encodeXrpAmount(_asString(v, 'Amount')),
     );
     addIfPresent(
       'Account',
       XrplFieldDefinitions.account,
-      (v) => XrplBinaryPrimitives.encodeAccountId(v as String),
+      (v) => XrplBinaryPrimitives.encodeAccountId(_asString(v, 'Account')),
     );
     addIfPresent(
       'Destination',
       XrplFieldDefinitions.destination,
-      (v) => XrplBinaryPrimitives.encodeAccountId(v as String),
+      (v) => XrplBinaryPrimitives.encodeAccountId(_asString(v, 'Destination')),
     );
     addIfPresent(
       'LimitAmount',
       XrplFieldDefinitions.limitAmount,
-      (v) => _encodeIssuedCurrencyFromMap(v as Map<String, dynamic>),
+      (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'LimitAmount')),
     );
 
     final unknownKeys = json.keys.toSet().difference({
@@ -169,10 +174,37 @@ class XrplTransactionSerializer {
 
   static Uint8List _encodeIssuedCurrencyFromMap(Map<String, dynamic> map) {
     return XrplAmountSerializer.encodeIssuedCurrencyAmount(
-      currency: map['currency'] as String,
-      issuer: map['issuer'] as String,
-      value: map['value'] as String,
+      currency: _asString(map['currency'], 'LimitAmount.currency'),
+      issuer: _asString(map['issuer'], 'LimitAmount.issuer'),
+      value: _asString(map['value'], 'LimitAmount.value'),
     );
+  }
+
+  static String _asString(Object? value, String fieldName) {
+    if (value is! String) {
+      throw XrplCryptoException(
+        '$fieldName must be a String, got ${value.runtimeType}',
+      );
+    }
+    return value;
+  }
+
+  static int _asInt(Object? value, String fieldName) {
+    if (value is! int) {
+      throw XrplCryptoException(
+        '$fieldName must be an int, got ${value.runtimeType}',
+      );
+    }
+    return value;
+  }
+
+  static Map<String, dynamic> _asMap(Object? value, String fieldName) {
+    if (value is! Map<String, dynamic>) {
+      throw XrplCryptoException(
+        '$fieldName must be a Map<String, dynamic>, got ${value.runtimeType}',
+      );
+    }
+    return value;
   }
 }
 

@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:xrpl_flutter_sdk/src/codec/xrpl_hex_codec.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_ed25519.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_hash.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_key_algorithm.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_secp256k1.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/binary/xrpl_transaction_serializer.dart';
 import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
 
@@ -16,8 +18,9 @@ const List<int> _singleSigningPrefix = [0x53, 0x54, 0x58, 0x00];
 /// Signs [transactionJson] (the `toJson()` output of an
 /// `XrplPayment`/`XrplTrustSet`, normally already filled in via
 /// `autofill`) with [wallet], returning a new map with `SigningPubKey`
-/// and `TxnSignature` added - ready to be re-serialized and submitted
-/// in `0.3.3-dev`.
+/// and `TxnSignature` added - ready to be re-serialized (via
+/// `XrplTransactionSerializer`) and submitted (via `submit` or
+/// `submitAndWait`).
 ///
 /// Why this works on a plain map, not the transaction model classes:
 /// same reasoning as `XrplTransactionSerializer` - `SigningPubKey`
@@ -42,6 +45,13 @@ const List<int> _singleSigningPrefix = [0x53, 0x54, 0x58, 0x00];
 ///      with no separate pre-hashing step.
 /// 5. Add `TxnSignature` (the signature, as uppercase hex) to the map.
 ///
+/// Throws an [XrplCryptoException] if [transactionJson] already has
+/// an `Account` field that doesn't match [wallet]'s own address - a
+/// mismatch that would otherwise go undetected here and only surface
+/// later as a confusing rejection from the network, since a
+/// transaction signed by the wrong wallet is still a mathematically
+/// valid signature, just for an account other than the one intended.
+///
 /// Example:
 /// ```dart
 /// final ready = await autofill(connection, payment);
@@ -55,9 +65,18 @@ Future<Map<String, dynamic>> sign(
   Map<String, dynamic> transactionJson,
   XrplWallet wallet,
 ) async {
+  final declaredAccount = transactionJson['Account'];
+  if (declaredAccount != null && declaredAccount != wallet.classicAddress) {
+    throw XrplCryptoException(
+      "transactionJson's Account ($declaredAccount) does not match "
+      "wallet's address (${wallet.classicAddress}) - refusing to sign "
+      'a transaction for a different account than the wallet provided.',
+    );
+  }
+
   final withPublicKey = <String, dynamic>{
     ...transactionJson,
-    'SigningPubKey': _bytesToHex(wallet.publicKeyBytes),
+    'SigningPubKey': XrplHexCodec.bytesToHex(wallet.publicKeyBytes),
   };
 
   final serialized = XrplTransactionSerializer.serialize(withPublicKey);
@@ -89,16 +108,8 @@ Future<Map<String, dynamic>> sign(
 
   return <String, dynamic>{
     ...withPublicKey,
-    'TxnSignature': _bytesToHex(signatureBytes),
+    'TxnSignature': XrplHexCodec.bytesToHex(signatureBytes),
   };
-}
-
-String _bytesToHex(Uint8List bytes) {
-  final buffer = StringBuffer();
-  for (final byte in bytes) {
-    buffer.write(byte.toRadixString(16).padLeft(2, '0'));
-  }
-  return buffer.toString().toUpperCase();
 }
 
 BigInt _bytesToBigInt(Uint8List bytes) {

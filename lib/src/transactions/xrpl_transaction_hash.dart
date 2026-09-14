@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:xrpl_flutter_sdk/src/codec/xrpl_hex_codec.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_hash.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/binary/xrpl_transaction_serializer.dart';
 
@@ -38,9 +39,5 @@ String transactionHash(Map<String, dynamic> signedTransactionJson) {
   ]);
   final hash = XrplHash.sha512Half(prefixed);
 
-  final buffer = StringBuffer();
-  for (final byte in hash) {
-    buffer.write(byte.toRadixString(16).padLeft(2, '0'));
-  }
-  return buffer.toString().toUpperCase();
+  return XrplHexCodec.bytesToHex(hash);
 }
