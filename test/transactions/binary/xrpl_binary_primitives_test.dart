@@ -49,6 +49,29 @@ void main() {
     });
   });
 
+  group('XrplBinaryPrimitives.encodeUInt16 error handling', () {
+    test('throws for a negative value', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeUInt16(-1),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws for a value beyond 65535', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeUInt16(65536),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('accepts the boundary value 65535 without throwing', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeUInt16(65535),
+        returnsNormally,
+      );
+    });
+  });
+
   group(
       'XrplBinaryPrimitives.encodeUInt32 against the official '
       'OfferCreate example', () {
@@ -63,6 +86,33 @@ void main() {
       expect(
         XrplBinaryPrimitives.encodeUInt32(1752792),
         _hexToBytes('001abed8'),
+      );
+    });
+  });
+
+  group('XrplBinaryPrimitives.encodeUInt32 error handling', () {
+    // This is what actually validates a field like
+    // XrplPayment.destinationTag, deferred here from that class's
+    // deliberately const constructor - see
+    // docs-sdk/phase-4/closing-audit/.
+    test('throws for a negative value', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeUInt32(-1),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws for a value beyond 4294967295', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeUInt32(4294967296),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('accepts the boundary value 4294967295 without throwing', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeUInt32(4294967295),
+        returnsNormally,
       );
     });
   });
@@ -98,6 +148,22 @@ void main() {
           '03ee83bb432547885c219634a1bc407a9db0474145d69737d09ccdc63e1dee7fe3';
       final encoded = XrplBinaryPrimitives.encodeBlob(pubKeyHex);
       expect(encoded, _hexToBytes('21$pubKeyHex'));
+    });
+  });
+
+  group('XrplBinaryPrimitives.encodeBlob error handling', () {
+    test('throws for a hex string with an odd number of characters', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeBlob('abc'),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws for a hex string containing non-hexadecimal characters', () {
+      expect(
+        () => XrplBinaryPrimitives.encodeBlob('zz'),
+        throwsA(isA<XrplCryptoException>()),
+      );
     });
   });
 }

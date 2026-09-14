@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xrpl_flutter_sdk/src/crypto/xrpl_key_algorithm.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/models/xrpl_payment.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/xrpl_signer.dart';
 import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
@@ -22,8 +23,15 @@ void main() {
         algorithm: XrplKeyAlgorithm.secp256k1,
       );
 
-      const payment = XrplPayment(
-        account: 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
+      // Uses wallet.classicAddress directly (not a separate hardcoded
+      // string) so Account always genuinely matches the signing
+      // wallet - a prior version of this test used an unrelated,
+      // mismatched address (from a different official example
+      // entirely) that happened to go unnoticed until the
+      // Account-mismatch validation added during the Phase 4 closing
+      // audit caught it.
+      final payment = XrplPayment(
+        account: wallet.classicAddress,
         destination: 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
         amountDrops: '10000000',
         sequence: 1,
@@ -64,9 +72,9 @@ void main() {
         algorithm: XrplKeyAlgorithm.ed25519,
       );
 
-      const payment = XrplPayment(
-        account: 'rG31cLyErnqeVj2eomEjBZtq7PYaupGYzL',
-        destination: 'rG31cLyErnqeVj2eomEjBZtq7PYaupGYzL',
+      final payment = XrplPayment(
+        account: wallet.classicAddress,
+        destination: wallet.classicAddress,
         amountDrops: '5000000',
         sequence: 1,
         fee: '10',
@@ -93,8 +101,8 @@ void main() {
         algorithm: XrplKeyAlgorithm.secp256k1,
       );
 
-      const payment = XrplPayment(
-        account: 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
+      final payment = XrplPayment(
+        account: wallet.classicAddress,
         destination: 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
         amountDrops: '10000000',
         sequence: 1,
@@ -109,6 +117,54 @@ void main() {
       expect(Set.of(originalJson.keys), originalKeys);
       expect(originalJson.containsKey('SigningPubKey'), isFalse);
       expect(originalJson.containsKey('TxnSignature'), isFalse);
+    });
+  });
+
+  group('sign() Account mismatch validation', () {
+    test(
+        "throws when transactionJson's Account does not match "
+        "wallet's address", () async {
+      final signingWallet = await XrplWallet.fromSeed(
+        'sn259rEFXrQrWyx3Q7XneWcwV6dfL',
+        algorithm: XrplKeyAlgorithm.secp256k1,
+      );
+      final differentWallet = await XrplWallet.fromSeed(
+        'sEdTM1uX8pu2do5XvTnutH6HsouMaM2',
+        algorithm: XrplKeyAlgorithm.ed25519,
+      );
+
+      // Built for differentWallet's account, but signed with
+      // signingWallet below - the mismatch this validation exists to
+      // catch.
+      final payment = XrplPayment(
+        account: differentWallet.classicAddress,
+        destination: 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
+        amountDrops: '10000000',
+        sequence: 1,
+        fee: '10',
+      );
+
+      await expectLater(
+        sign(payment.toJson(), signingWallet),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test("does not throw when Account matches wallet's address", () async {
+      final wallet = await XrplWallet.fromSeed(
+        'sn259rEFXrQrWyx3Q7XneWcwV6dfL',
+        algorithm: XrplKeyAlgorithm.secp256k1,
+      );
+
+      final payment = XrplPayment(
+        account: wallet.classicAddress,
+        destination: 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
+        amountDrops: '10000000',
+        sequence: 1,
+        fee: '10',
+      );
+
+      await expectLater(sign(payment.toJson(), wallet), completes);
     });
   });
 }

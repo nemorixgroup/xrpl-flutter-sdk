@@ -130,4 +130,62 @@ void main() {
       );
     });
   });
+
+  group('XrplTransactionSerializer.serialize type validation', () {
+    // These exercise a hand-built map with the wrong field types - not
+    // something toJson() would ever produce, but a real risk if a map
+    // is constructed by hand instead. Confirms a clear
+    // XrplCryptoException is thrown, not a raw TypeError.
+    test(
+        'throws a clear error when Sequence is a String instead of an '
+        'int', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'Payment',
+          'Sequence': '6', // should be an int
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test(
+        'throws a clear error when Account is an int instead of a '
+        'String', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'Payment',
+          'Account': 12345, // should be a String
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test(
+        'throws a clear error when LimitAmount is a String instead of '
+        'a Map', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'TrustSet',
+          'LimitAmount': 'not a map',
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test(
+        'throws a clear error when LimitAmount.currency is missing '
+        'the expected type', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'TrustSet',
+          'LimitAmount': {
+            'currency': 123,
+            'issuer': 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN',
+            'value': '1000',
+          },
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
 }
