@@ -5,6 +5,101 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0-dev
+
+**Phase 4 complete.** This release consolidates Phase 4: the full
+transaction pipeline (model, signing, submission), closed with a
+thorough error-handling and test-coverage audit across every file
+added since `0.3.1-dev`.
+
+### Added
+
+- (Carried from 0.3.1-dev through 0.3.3-dev) `XrplTransaction`,
+  `XrplPayment`, `XrplTrustSet`, `XrplFeeStrategy`, `autofill`,
+  the full binary codec (`XrplFieldDefinitions`,
+  `XrplBinaryPrimitives`, `XrplAmountSerializer`,
+  `XrplTransactionSerializer`), `sign`, `transactionHash`, `tx`,
+  `submit`, `submitAndWait`, `sendTransaction`, `sendPayment`,
+  `fundTestWallet`
+- `XrplHexCodec`: a general-purpose bytes-to-hex/hex-to-bytes codec,
+  consolidating logic that was previously duplicated across three
+  files
+- `sign()` now validates that a transaction's `Account` matches the
+  signing wallet's address, throwing `XrplCryptoException` on
+  mismatch instead of silently producing a valid-but-misdirected
+  signature
+- `autofill`'s `ledgerOffset` and `submitAndWait`'s `pollInterval` are
+  now validated (must be non-negative / positive respectively)
+- `fundTestWallet` gained `maxAttempts` and `attemptDelay` parameters,
+  both validated, replacing previously-hardcoded constants
+
+### Fixed (found during the closing audit)
+
+- `XrplAmountSerializer._encodeCurrencyCode` accepted non-ASCII
+  currency codes and silently truncated them via `codeUnits`
+  overflow, producing a corrupted, incorrect currency code with no
+  error, now rejected explicitly
+- `XrplAmountSerializer`'s decimal value parsing accepted malformed
+  input (multiple decimal points, non-numeric characters) either
+  silently or via a raw `FormatException`, now validated with clear
+  `XrplCryptoException`s
+- `XrplTransactionSerializer` used unchecked `as` casts on every
+  field value, risking a raw `TypeError` for a hand-built (not
+  `toJson()`-produced) map with an unexpected field type - replaced
+  with explicit, clearly-messaged type checks
+- `XrplBinaryPrimitives.encodeUInt16`/`encodeUInt32` didn't validate
+  their input range, letting a raw `RangeError` escape (this is what
+  actually validates fields like `XrplPayment.destinationTag`, which
+  can't be validated at construction since that class's constructor
+  is deliberately `const`); `encodeBlob`'s underlying hex parsing
+  didn't validate format either
+- `autofill`, `submitAndWait`, and `fundTestWallet` all had unchecked
+  `as` casts on server response fields, risking a raw `TypeError` on
+  an unexpected response shape
+
+### Design Decisions
+
+- `XrplPayment`/`XrplTrustSet`'s optional numeric fields (for example
+  `destinationTag`) are deliberately left unvalidated at construction,
+  since both classes use `const` constructors (needed for ergonomic
+  `const XrplPayment(...)` usage in tests and examples) that cannot
+  contain conditional validation logic. Validation for these instead
+  lives in `XrplBinaryPrimitives`, where the value is actually
+  encoded, this avoids ever needing to remove `const` later (a
+  breaking change) to add validation
+- `sendTransaction`/`sendPayment` were confirmed, via a new test, to
+  propagate a genuinely different exception type from a layer deeper
+  than connection-level errors (`sign()`'s `XrplCryptoException`, not
+  just `autofill`'s `XrplConnectionException`); the same kind of
+  cross-layer propagation gap this SDK's Phase 1 audit first
+  established as worth checking for explicitly
+- `XrplHexCodec` consolidates three duplicated implementations, but
+  deliberately does *not* replace `xrpl_binary_primitives.dart`'s own
+  private hex parser, since that one carries additional validation
+  (malformed hex format) the shared codec doesn't; consolidation was
+  scoped to genuinely identical duplicates, not superficially similar
+  code with different responsibilities
+
+### Phase 4 Summary
+
+- The complete transaction pipeline: build (`XrplPayment`,
+  `XrplTrustSet`), autofill, sign (both `secp256k1` and `Ed25519`,
+  including a serious signing bug found and fixed in `0.3.3-dev`),
+  submit, and confirm - plus a convenience layer
+  (`sendTransaction`/`sendPayment`) and test infrastructure
+  (`fundTestWallet`)
+- 263 tests total, including numerous real, successful transactions
+  confirmed on the public Testnet across multiple algorithms and
+  scenarios
+- Every file added since `0.3.1-dev` was individually audited against
+  the same three questions used in every phase's closing audit:
+  missing edge cases, error message clarity, documentation accuracy
+
+### Status
+
+**Phase 4 complete.** Not ready for production use.  
+Next: Phase 5 - DEX & Cross-Currency (`0.4.1-dev`).
+
 ## 0.3.3-dev
 
 **Phase 4 complete pipeline.** This sub-version closes the loop
