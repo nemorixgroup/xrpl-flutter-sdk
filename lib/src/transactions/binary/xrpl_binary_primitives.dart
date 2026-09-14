@@ -8,12 +8,12 @@ import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 /// `XrplTrustSet` need: `UInt16`, `UInt32`, `AccountID`, and `Blob`.
 ///
 /// Why this exists: XRPL's binary format encodes every field type
-/// differently (see `docs-sdk/phase-4/binary-serialization/`), and
-/// each encoder here was verified against the exact byte layout in
-/// an official worked example (an `OfferCreate` transaction's
-/// published JSON and binary side by side) before being trusted,
-/// following this SDK's standing practice of never accepting an
-/// implementation on assumption alone.
+/// differently (see `docs-sdk/phase-4/signing/`), and each encoder
+/// here was verified against the exact byte layout in an official
+/// worked example (an `OfferCreate` transaction's published JSON and
+/// binary side by side) before being trusted, following this SDK's
+/// standing practice of never accepting an implementation on
+/// assumption alone.
 ///
 /// See: https://xrpl.org/docs/references/protocol/binary-format
 class XrplBinaryPrimitives {
@@ -44,14 +44,37 @@ class XrplBinaryPrimitives {
   }
 
   /// Encodes a `UInt16` field: exactly 2 bytes, big-endian.
+  ///
+  /// Throws an [XrplCryptoException] if [value] is negative or
+  /// exceeds what 2 bytes can hold (`65535`), rather than letting a
+  /// raw `RangeError` escape from the underlying byte buffer write.
   static Uint8List encodeUInt16(int value) {
+    if (value < 0 || value > 0xFFFF) {
+      throw XrplCryptoException(
+        'UInt16 value must be between 0 and 65535, got $value',
+      );
+    }
     final bytes = Uint8List(2);
     bytes.buffer.asByteData().setUint16(0, value);
     return bytes;
   }
 
   /// Encodes a `UInt32` field: exactly 4 bytes, big-endian.
+  ///
+  /// Throws an [XrplCryptoException] if [value] is negative or
+  /// exceeds what 4 bytes can hold (`4294967295`), rather than
+  /// letting a raw `RangeError` escape from the underlying byte
+  /// buffer write. This is what actually validates fields like
+  /// `XrplPayment.destinationTag` - not validated at construction,
+  /// since that class's constructor is deliberately `const` (see
+  /// `docs-sdk/phase-4/closing-audit/` for why validation was placed
+  /// here instead).
   static Uint8List encodeUInt32(int value) {
+    if (value < 0 || value > 0xFFFFFFFF) {
+      throw XrplCryptoException(
+        'UInt32 value must be between 0 and 4294967295, got $value',
+      );
+    }
     final bytes = Uint8List(4);
     bytes.buffer.asByteData().setUint32(0, value);
     return bytes;
@@ -80,6 +103,10 @@ class XrplBinaryPrimitives {
 
   /// Encodes a `Blob` field: raw bytes from a [hexValue] string,
   /// prefixed with their length.
+  ///
+  /// Throws an [XrplCryptoException] if [hexValue] has an odd length
+  /// or contains non-hexadecimal characters, rather than letting a
+  /// raw `FormatException` escape.
   static Uint8List encodeBlob(String hexValue) {
     final bytes = _hexToBytes(hexValue);
     return Uint8List.fromList([
@@ -89,9 +116,22 @@ class XrplBinaryPrimitives {
   }
 
   static Uint8List _hexToBytes(String hex) {
+    if (hex.length.isOdd) {
+      throw XrplCryptoException(
+        'hexValue must have an even number of characters, got '
+        '${hex.length} ("$hex")',
+      );
+    }
     final result = Uint8List(hex.length ~/ 2);
     for (var i = 0; i < hex.length; i += 2) {
-      result[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+      try {
+        result[i ~/ 2] = int.parse(hex.substring(i, i + 2), radix: 16);
+      } on FormatException catch (_) {
+        throw XrplCryptoException(
+          'hexValue contains a non-hexadecimal character at position '
+          '$i ("$hex")',
+        );
+      }
     }
     return result;
   }

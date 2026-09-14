@@ -48,3 +48,4 @@ export 'src/transactions/xrpl_transaction_hash.dart';
 export 'src/transactions/xrpl_submit_and_wait.dart';
 export 'src/transactions/xrpl_send_transaction.dart';
 export 'src/transactions/xrpl_send_payment.dart';
+export 'src/codec/xrpl_hex_codec.dart';

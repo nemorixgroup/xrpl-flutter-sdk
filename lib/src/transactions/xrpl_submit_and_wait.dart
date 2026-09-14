@@ -1,3 +1,4 @@
+import 'package:xrpl_flutter_sdk/src/codec/xrpl_hex_codec.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_queries.dart';
 import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
@@ -39,12 +40,17 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction_hash.dart';
 ///
 /// [pollInterval] controls how long to wait between `tx` lookups;
 /// defaults to 1 second, a reasonable balance against XRPL's typical
-/// ~3-5 second ledger close time.
+/// ~3-5 second ledger close time. Must be positive - a zero or
+/// negative interval would poll the server in a tight, unthrottled
+/// loop.
 ///
-/// Throws an [XrplConnectionException] if [signedTransactionJson] has
-/// no `LastLedgerSequence` (needed to know when to stop waiting), if
-/// the transaction's `LastLedgerSequence` is passed by the latest
-/// validated ledger without the transaction being validated, or if
+/// Throws an [XrplConnectionException] if [pollInterval] is not
+/// positive, if [signedTransactionJson] has no `LastLedgerSequence`
+/// (needed to know when to stop waiting) or has one with an
+/// unexpected type, if the transaction's `LastLedgerSequence` is
+/// passed by the latest validated ledger without the transaction
+/// being validated, if the server's response for `validated_ledger`
+/// or its `seq` doesn't have the expected shape, or if
 /// `submit`/`tx`/`serverInfo` themselves throw for any other reason.
 ///
 /// Example:
@@ -61,20 +67,32 @@ Future<Map<String, dynamic>> submitAndWait(
   Map<String, dynamic> signedTransactionJson, {
   Duration pollInterval = const Duration(seconds: 1),
 }) async {
-  final lastLedgerSequence =
-      signedTransactionJson['LastLedgerSequence'] as int?;
-  if (lastLedgerSequence == null) {
+  if (pollInterval <= Duration.zero) {
+    throw XrplConnectionException(
+      'pollInterval must be positive, got $pollInterval',
+    );
+  }
+
+  final lastLedgerSequenceRaw = signedTransactionJson['LastLedgerSequence'];
+  if (lastLedgerSequenceRaw == null) {
     throw const XrplConnectionException(
       'submitAndWait requires LastLedgerSequence to already be set '
       '(via autofill), so it can know when to stop waiting for a '
       'transaction that will never be included.',
     );
   }
+  if (lastLedgerSequenceRaw is! int) {
+    throw XrplConnectionException(
+      "signedTransactionJson's LastLedgerSequence must be an int, "
+      'got ${lastLedgerSequenceRaw.runtimeType}',
+    );
+  }
+  final lastLedgerSequence = lastLedgerSequenceRaw;
 
   final serialized = XrplTransactionSerializer.serialize(
     signedTransactionJson,
   );
-  final txBlob = _bytesToHex(serialized);
+  final txBlob = XrplHexCodec.bytesToHex(serialized);
   final txHash = transactionHash(signedTransactionJson);
 
   await submit(connection, txBlob);
@@ -92,26 +110,30 @@ Future<Map<String, dynamic>> submitAndWait(
     }
 
     final info = await serverInfo(connection);
-    final validatedLedger = info['validated_ledger'] as Map<String, dynamic>;
-    final latestValidatedLedger = validatedLedger['seq'] as int;
+    final validatedLedgerRaw = info['validated_ledger'];
+    if (validatedLedgerRaw is! Map<String, dynamic>) {
+      throw const XrplConnectionException(
+        'Unexpected server_info response shape: missing or invalid '
+        '"validated_ledger" field.',
+      );
+    }
+    final latestValidatedLedgerRaw = validatedLedgerRaw['seq'];
+    if (latestValidatedLedgerRaw is! int) {
+      throw const XrplConnectionException(
+        'Unexpected server_info response shape: missing or invalid '
+        '"validated_ledger.seq" field.',
+      );
+    }
 
-    if (latestValidatedLedger > lastLedgerSequence) {
+    if (latestValidatedLedgerRaw > lastLedgerSequence) {
       throw XrplConnectionException(
         'Transaction $txHash was not validated before its '
         'LastLedgerSequence ($lastLedgerSequence) was passed by the '
-        'latest validated ledger ($latestValidatedLedger) - it was '
+        'latest validated ledger ($latestValidatedLedgerRaw) - it was '
         'likely not included in the ledger.',
       );
     }
 
     await Future<void>.delayed(pollInterval);
   }
-}
-
-String _bytesToHex(List<int> bytes) {
-  final buffer = StringBuffer();
-  for (final byte in bytes) {
-    buffer.write(byte.toRadixString(16).padLeft(2, '0'));
-  }
-  return buffer.toString().toUpperCase();
 }

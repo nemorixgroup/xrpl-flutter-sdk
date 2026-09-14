@@ -99,4 +99,56 @@ void main() {
       );
     });
   });
+
+  group('XrplAmountSerializer.encodeIssuedCurrencyAmount value validation', () {
+    test('throws for a value with more than one decimal point', () {
+      expect(
+        () => XrplAmountSerializer.encodeIssuedCurrencyAmount(
+          currency: 'USD',
+          issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          value: '1.2.3',
+        ),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws for a value containing non-numeric characters', () {
+      expect(
+        () => XrplAmountSerializer.encodeIssuedCurrencyAmount(
+          currency: 'USD',
+          issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          value: '12a.5',
+        ),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws for an empty value', () {
+      expect(
+        () => XrplAmountSerializer.encodeIssuedCurrencyAmount(
+          currency: 'USD',
+          issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          value: '',
+        ),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
+
+  group(
+      'XrplAmountSerializer.encodeIssuedCurrencyAmount currency '
+      'validation', () {
+    test(
+        'throws for a 3-character currency containing a non-ASCII '
+        'character, instead of silently truncating it', () {
+      expect(
+        () => XrplAmountSerializer.encodeIssuedCurrencyAmount(
+          currency: r'Ñ$€', // 3 "characters", but not all ASCII
+          issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          value: '100',
+        ),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
 }

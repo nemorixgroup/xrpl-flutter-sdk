@@ -28,5 +28,78 @@ void main() {
         throwsA(isA<XrplConnectionException>()),
       );
     });
+
+    test(
+        'throws immediately if LastLedgerSequence has the wrong type, '
+        'without attempting any network request', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+
+      final wrongTypeSignedTx = <String, dynamic>{
+        'TransactionType': 'Payment',
+        'Account': 'rSomeAddress...',
+        'Destination': 'rSomeOtherAddress...',
+        'Amount': '10000000',
+        'Sequence': 1,
+        'Fee': '10',
+        'SigningPubKey': 'ED...',
+        'TxnSignature': 'AB...',
+        'LastLedgerSequence': '1000000', // should be an int, not a String
+      };
+
+      await expectLater(
+        submitAndWait(connection, wrongTypeSignedTx),
+        throwsA(isA<XrplConnectionException>()),
+      );
+    });
+
+    test(
+        'throws immediately for a zero pollInterval, without '
+        'attempting any network request', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+
+      final signedTx = <String, dynamic>{
+        'TransactionType': 'Payment',
+        'Account': 'rSomeAddress...',
+        'Destination': 'rSomeOtherAddress...',
+        'Amount': '10000000',
+        'Sequence': 1,
+        'Fee': '10',
+        'SigningPubKey': 'ED...',
+        'TxnSignature': 'AB...',
+        'LastLedgerSequence': 1000000,
+      };
+
+      await expectLater(
+        submitAndWait(connection, signedTx, pollInterval: Duration.zero),
+        throwsA(isA<XrplConnectionException>()),
+      );
+    });
+
+    test(
+        'throws immediately for a negative pollInterval, without '
+        'attempting any network request', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+
+      final signedTx = <String, dynamic>{
+        'TransactionType': 'Payment',
+        'Account': 'rSomeAddress...',
+        'Destination': 'rSomeOtherAddress...',
+        'Amount': '10000000',
+        'Sequence': 1,
+        'Fee': '10',
+        'SigningPubKey': 'ED...',
+        'TxnSignature': 'AB...',
+        'LastLedgerSequence': 1000000,
+      };
+
+      await expectLater(
+        submitAndWait(
+          connection,
+          signedTx,
+          pollInterval: const Duration(seconds: -1),
+        ),
+        throwsA(isA<XrplConnectionException>()),
+      );
+    });
   });
 }

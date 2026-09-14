@@ -61,7 +61,7 @@ class XrplFieldDefinition {
 /// of how a transaction's signing hash is calculated, so changing one
 /// for a field that already exists would invalidate every historical
 /// transaction and signature on the XRP Ledger - see
-/// `docs-sdk/phase-4/binary-serialization/` for the full reasoning.
+/// `docs-sdk/phase-4/signing/` for the full reasoning.
 /// Adding fields for transaction types this SDK doesn't support yet
 /// (Phase 5 onward) is normal and expected; re-run
 /// `scripts/regenerate_field_definitions.dart` and extend this class

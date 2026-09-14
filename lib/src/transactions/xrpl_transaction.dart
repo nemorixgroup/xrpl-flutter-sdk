@@ -2,13 +2,17 @@
 /// implements (`XrplPayment`, `XrplTrustSet`, and future types added
 /// in later phases).
 ///
-/// Why this exists: `autofill` needs to fill in [sequence], [fee],
-/// and [lastLedgerSequence] the same way regardless of which
-/// transaction type it's given - it shouldn't need a separate
-/// `autofillPayment`, `autofillTrustSet`, `autofillOfferCreate`, and
-/// so on, repeating the same logic for every transaction type this
-/// SDK adds over time. This interface is what makes one generic
-/// `autofill<T extends XrplTransaction>` function possible instead.
+/// Why this exists: both `autofill` and `sendTransaction` need to
+/// work the same way regardless of which transaction type they're
+/// given - `autofill` fills in `sequence`, `fee`, and
+/// `lastLedgerSequence`; `sendTransaction` chains autofill, signing,
+/// and submission together. Neither should need a separate
+/// `autofillPayment`/`sendPayment`-style function repeated per
+/// transaction type this SDK adds over time (`OfferCreate`,
+/// `EscrowCreate`, and so on in later phases). This interface is what
+/// makes one generic `autofill<T extends XrplTransaction>` and one
+/// generic `sendTransaction<T extends XrplTransaction>` possible
+/// instead.
 abstract class XrplTransaction {
   /// Const constructor for subclasses, so each concrete transaction
   /// type (`XrplPayment`, `XrplTrustSet`, and future types) can

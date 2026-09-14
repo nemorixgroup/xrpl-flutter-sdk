@@ -1,5 +1,6 @@
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_queries.dart';
+import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/xrpl_fee_strategy.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 
@@ -28,15 +29,21 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 /// latency from the extra `accountInfo`/`fee` lookups this function
 /// itself performs. Pass a smaller [ledgerOffset] (down to the
 /// official minimum of `4`) if a faster, more deterministic
-/// expiration is actually wanted.
+/// expiration is actually wanted. [ledgerOffset] must not be
+/// negative - a negative value would produce a `lastLedgerSequence`
+/// already behind the current ledger, guaranteeing the transaction
+/// expires before it can even be submitted.
 ///
 /// Any field already set on [transaction] is left as-is - `autofill`
 /// only fills in what's missing, the same behavior `xrpl.js`
 /// documents for its own `autofill`.
 ///
-/// Throws an `XrplConnectionException` (via `accountInfo`/`fee`) if
-/// not connected, either request times out, or the server returns an
-/// error.
+/// Throws an [XrplConnectionException] if [ledgerOffset] is negative,
+/// if not connected, if either request times out, if the server
+/// returns an error, or if the server's response for `Sequence`,
+/// `drops`, or `ledger_current_index` doesn't have the expected
+/// shape (defensive checks against a malformed response, not
+/// expected in practice from a real XRPL server).
 ///
 /// Example:
 /// ```dart
@@ -57,6 +64,12 @@ Future<T> autofill<T extends XrplTransaction>(
   XrplFeeStrategy feeStrategy = XrplFeeStrategy.openLedger,
   int ledgerOffset = 20,
 }) async {
+  if (ledgerOffset < 0) {
+    throw XrplConnectionException(
+      'ledgerOffset must not be negative, got $ledgerOffset',
+    );
+  }
+
   final sequence = transaction.sequence ??
       await _lookUpSequence(connection, transaction.account);
 
@@ -67,10 +80,24 @@ Future<T> autofill<T extends XrplTransaction>(
     lastLedgerSequence = transaction.lastLedgerSequence;
   } else {
     final feeInfo = await fee(connection);
-    final drops = feeInfo['drops'] as Map<String, dynamic>;
-    feeValue = transaction.fee ?? _feeFor(feeStrategy, drops);
-    lastLedgerSequence = transaction.lastLedgerSequence ??
-        (feeInfo['ledger_current_index'] as int) + ledgerOffset;
+
+    final dropsRaw = feeInfo['drops'];
+    if (dropsRaw is! Map<String, dynamic>) {
+      throw const XrplConnectionException(
+        'Unexpected fee response shape: missing or invalid "drops" field.',
+      );
+    }
+    feeValue = transaction.fee ?? _feeFor(feeStrategy, dropsRaw);
+
+    final currentLedgerRaw = feeInfo['ledger_current_index'];
+    if (currentLedgerRaw is! int) {
+      throw const XrplConnectionException(
+        'Unexpected fee response shape: missing or invalid '
+        '"ledger_current_index" field.',
+      );
+    }
+    lastLedgerSequence =
+        transaction.lastLedgerSequence ?? currentLedgerRaw + ledgerOffset;
   }
 
   return transaction.copyWith(
@@ -82,18 +109,28 @@ Future<T> autofill<T extends XrplTransaction>(
 
 Future<int> _lookUpSequence(XrplConnection connection, String account) async {
   final accountData = await accountInfo(connection, account);
-  return accountData['Sequence'] as int;
+  final sequenceRaw = accountData['Sequence'];
+  if (sequenceRaw is! int) {
+    throw const XrplConnectionException(
+      'Unexpected account_info response shape: missing or invalid '
+      '"Sequence" field.',
+    );
+  }
+  return sequenceRaw;
 }
 
 String _feeFor(XrplFeeStrategy strategy, Map<String, dynamic> drops) {
-  switch (strategy) {
-    case XrplFeeStrategy.openLedger:
-      return drops['open_ledger_fee'] as String;
-    case XrplFeeStrategy.minimum:
-      return drops['minimum_fee'] as String;
-    case XrplFeeStrategy.median:
-      return drops['median_fee'] as String;
-    case XrplFeeStrategy.base:
-      return drops['base_fee'] as String;
+  final fieldName = switch (strategy) {
+    XrplFeeStrategy.openLedger => 'open_ledger_fee',
+    XrplFeeStrategy.minimum => 'minimum_fee',
+    XrplFeeStrategy.median => 'median_fee',
+    XrplFeeStrategy.base => 'base_fee',
+  };
+  final value = drops[fieldName];
+  if (value is! String) {
+    throw XrplConnectionException(
+      'Unexpected fee response shape: missing or invalid "$fieldName" field.',
+    );
   }
+  return value;
 }

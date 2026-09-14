@@ -4,14 +4,14 @@ import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_crypto_exception.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/binary/xrpl_binary_primitives.dart';
 
 /// Encoders for XRPL's `Amount` binary type, in both forms this SDK
-/// needs: a plain XRP amount (for `XrplPayment.amountDrops]`, and an
+/// needs: a plain XRP amount (for `XrplPayment.amountDrops`), and an
 /// issued-currency amount (for `XrplTrustSet`'s `LimitAmount`).
 ///
 /// Both encoders were verified against an official worked example
 /// (an `OfferCreate` transaction's published JSON and binary), which
 /// happens to include one of each form (`TakerGets` as XRP,
 /// `TakerPays` as an issued currency) - see
-/// `docs-sdk/phase-4/binary-serialization/` for the full verification.
+/// `docs-sdk/phase-4/signing/` for the full verification.
 ///
 /// See: https://xrpl.org/docs/references/protocol/binary-format#amount-fields
 class XrplAmountSerializer {
@@ -103,8 +103,22 @@ class XrplAmountSerializer {
     if (negative) raw = raw.substring(1);
 
     final parts = raw.split('.');
+    if (parts.length > 2) {
+      throw XrplCryptoException(
+        'value must have at most one decimal point, got "$value"',
+      );
+    }
     final intPart = parts[0];
     final fracPart = parts.length > 1 ? parts[1] : '';
+
+    final digitsOnly = RegExp(r'^[0-9]*$');
+    if (!digitsOnly.hasMatch(intPart) ||
+        !digitsOnly.hasMatch(fracPart) ||
+        (intPart.isEmpty && fracPart.isEmpty)) {
+      throw XrplCryptoException(
+        'value must be a valid decimal number, got "$value"',
+      );
+    }
 
     var digits = intPart + fracPart;
     // Strip leading zeros so digit-count normalization below reflects
@@ -164,9 +178,17 @@ class XrplAmountSerializer {
       );
     }
 
+    final asciiBytes = currency.codeUnits;
+    for (final unit in asciiBytes) {
+      if (unit > 0x7F) {
+        throw XrplCryptoException(
+          'currency must contain only ASCII characters, got "$currency"',
+        );
+      }
+    }
+
     // Standard format, confirmed against the official "USD" example:
     // 12 zero bytes, then the 3 ASCII letters, then 5 more zero bytes.
-    final asciiBytes = currency.codeUnits;
     return Uint8List.fromList([
       ...List.filled(12, 0),
       ...asciiBytes,

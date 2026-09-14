@@ -62,6 +62,17 @@ class XrplPayment implements XrplTransaction {
   /// An optional tag identifying a specific destination sub-account
   /// (for example, a specific customer at an exchange that shares one
   /// XRPL account across many users).
+  ///
+  /// Not validated here (this class's constructor is deliberately
+  /// `const`, which cannot contain conditional validation logic, and
+  /// changing that later would be a breaking change for any existing
+  /// `const XrplPayment(...)` usage). An out-of-range value
+  /// eventually surfaces when the transaction is serialized for
+  /// signing - tracked as a follow-up to add a proper `XrplCryptoException`
+  /// at that point (in `XrplBinaryPrimitives.encodeUInt32`, where the
+  /// value actually gets encoded), replacing the raw `RangeError`
+  /// that currently leaks through unvalidated. This approach fixes
+  /// the problem without ever needing to remove `const` here.
   final int? destinationTag;
 
   /// The sending account's next sequence number. Usually left `null`
