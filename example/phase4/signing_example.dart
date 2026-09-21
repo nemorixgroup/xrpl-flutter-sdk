@@ -16,11 +16,16 @@ Future<void> signingExample() async {
     algorithm: XrplKeyAlgorithm.ed25519,
   );
 
-  const payment = XrplPayment(
-    account: 'rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn',
-    destination: 'rG1QQv2nh2gr7RCZ1P8YYcBUKCCN633jCn',
+  // The payment's Account must match the signing wallet's address -
+  // sign() validates this and throws otherwise. sequence is provided
+  // explicitly so this example doesn't need a funded account
+  // (autofill skips the accountInfo lookup for any field already
+  // set).
+  final payment = XrplPayment(
+    account: wallet.classicAddress,
+    destination: wallet.classicAddress,
     amountDrops: '10000000',
-    sequence: 1, // provided so this example doesn't need a funded account
+    sequence: 1,
   );
 
   final filled = await autofill(connection, payment);
