@@ -38,7 +38,7 @@
 /// );
 /// ```
 ///
-/// See: 
+/// See:
 /// https://xrpl.org/docs/references/protocol/data-types/basic-data-types#specifying-currency-amounts
 class XrplCurrencyAmount {
   /// Creates a plain XRP amount, in [drops] (1 XRP = 1,000,000

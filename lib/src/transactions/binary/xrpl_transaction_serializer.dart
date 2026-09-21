@@ -35,13 +35,12 @@ class XrplTransactionSerializer {
   /// `toJson()` already omits unset optional fields.
   ///
   /// Throws an [XrplCryptoException] if [json] contains a field this
-  /// SDK doesn't yet know how to serialize (support is limited to
-  /// what `XrplPayment` and `XrplTrustSet` currently need), if a
-  /// field's value has an unexpected type (for example, `Sequence` as
-  /// a `String` instead of an `int` - this can only happen if [json]
-  /// was built by hand rather than via `toJson()`), or if any field's
-  /// value fails its own encoder's validation (for example, an
-  /// invalid address or amount).
+  /// SDK doesn't yet know how to serialize, if a field's value has an
+  /// unexpected type (for example, `Sequence` as a `String` instead
+  /// of an `int` - this can only happen if [json] was built by hand
+  /// rather than via `toJson()`), or if any field's value fails its
+  /// own encoder's validation (for example, an invalid address or
+  /// amount).
   static Uint8List serialize(Map<String, dynamic> json) {
     final entries = <_FieldEntry>[];
 
@@ -85,6 +84,16 @@ class XrplTransactionSerializer {
       ),
     );
     addIfPresent(
+      'Expiration',
+      XrplFieldDefinitions.expiration,
+      (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'Expiration')),
+    );
+    addIfPresent(
+      'OfferSequence',
+      XrplFieldDefinitions.offerSequence,
+      (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'OfferSequence')),
+    );
+    addIfPresent(
       'SigningPubKey',
       XrplFieldDefinitions.signingPubKey,
       (v) => XrplBinaryPrimitives.encodeBlob(_asString(v, 'SigningPubKey')),
@@ -122,6 +131,20 @@ class XrplTransactionSerializer {
       XrplFieldDefinitions.limitAmount,
       (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'LimitAmount')),
     );
+    addIfPresent(
+      'TakerGets',
+      XrplFieldDefinitions.takerGets,
+      // Unlike Amount, TakerGets/TakerPays are never XRP-only -
+      // trading only XRP for XRP would make an Offer meaningless. So
+      // this accepts either shape XrplCurrencyAmount.toJson() can
+      // produce: a plain drops String, or a currency/issuer/value Map.
+      (v) => _encodeEitherAmount(v, 'TakerGets'),
+    );
+    addIfPresent(
+      'TakerPays',
+      XrplFieldDefinitions.takerPays,
+      (v) => _encodeEitherAmount(v, 'TakerPays'),
+    );
 
     final unknownKeys = json.keys.toSet().difference({
       'TransactionType',
@@ -129,6 +152,8 @@ class XrplTransactionSerializer {
       'Sequence',
       'DestinationTag',
       'LastLedgerSequence',
+      'Expiration',
+      'OfferSequence',
       'SigningPubKey',
       'TxnSignature',
       'Fee',
@@ -136,6 +161,8 @@ class XrplTransactionSerializer {
       'Account',
       'Destination',
       'LimitAmount',
+      'TakerGets',
+      'TakerPays',
     });
     if (unknownKeys.isNotEmpty) {
       throw XrplCryptoException(
@@ -167,6 +194,10 @@ class XrplTransactionSerializer {
         return XrplTransactionTypeCode.payment;
       case 'TrustSet':
         return XrplTransactionTypeCode.trustSet;
+      case 'OfferCreate':
+        return XrplTransactionTypeCode.offerCreate;
+      case 'OfferCancel':
+        return XrplTransactionTypeCode.offerCancel;
       default:
         throw XrplCryptoException('Unsupported TransactionType "$name"');
     }
@@ -174,9 +205,26 @@ class XrplTransactionSerializer {
 
   static Uint8List _encodeIssuedCurrencyFromMap(Map<String, dynamic> map) {
     return XrplAmountSerializer.encodeIssuedCurrencyAmount(
-      currency: _asString(map['currency'], 'LimitAmount.currency'),
-      issuer: _asString(map['issuer'], 'LimitAmount.issuer'),
-      value: _asString(map['value'], 'LimitAmount.value'),
+      currency: _asString(map['currency'], 'currency'),
+      issuer: _asString(map['issuer'], 'issuer'),
+      value: _asString(map['value'], 'value'),
+    );
+  }
+
+  /// Encodes a value that may be either a plain drops String (XRP) or
+  /// a `{currency, issuer, value}` Map (issued currency) - the two
+  /// shapes `XrplCurrencyAmount.toJson()` can produce for
+  /// `TakerGets`/`TakerPays`.
+  static Uint8List _encodeEitherAmount(Object? value, String fieldName) {
+    if (value is String) {
+      return XrplAmountSerializer.encodeXrpAmount(value);
+    }
+    if (value is Map<String, dynamic>) {
+      return _encodeIssuedCurrencyFromMap(value);
+    }
+    throw XrplCryptoException(
+      '$fieldName must be a String (XRP drops) or a Map<String, dynamic> '
+      '(issued currency), got ${value.runtimeType}',
     );
   }
 
