@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.0-dev
+  xrpl_flutter_sdk: ^0.4.1-dev
 ```
 
 ```bash
@@ -170,6 +170,23 @@ final result = await sendPayment(
   destinationAddress: 'rSomeRecipientAddress...',
   amountDrops: '10000000', // 10 XRP
 );
+print(result['meta']['TransactionResult']); // e.g. "tesSUCCESS"
+```
+
+```dart
+// Place an Offer on XRPL's decentralized exchange: TakerGets/TakerPays
+// use XrplCurrencyAmount, since an Offer always trades XRP for an
+// issued currency (or vice versa) - never XRP for XRP.
+final offer = XrplOfferCreate(
+  account: wallet.classicAddress,
+  takerGets: const XrplCurrencyAmount.xrp('1000000'), // 1 XRP
+  takerPays: XrplCurrencyAmount.issued(
+    currency: 'USD',
+    issuer: 'rSomeIssuerAddress...',
+    value: '0.5',
+  ),
+);
+final result = await sendTransaction(connection, offer, wallet);
 print(result['meta']['TransactionResult']); // e.g. "tesSUCCESS"
 ```
 

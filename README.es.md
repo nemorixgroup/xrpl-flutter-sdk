@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.0-dev
+  xrpl_flutter_sdk: ^0.4.1-dev
 ```
 
 ```bash
@@ -168,6 +168,24 @@ final result = await sendPayment(
   destinationAddress: 'rSomeRecipientAddress...',
   amountDrops: '10000000', // 10 XRP
 );
+print(result['meta']['TransactionResult']); // ej. "tesSUCCESS"
+```
+
+```dart
+// Coloca una Offer en el exchange descentralizado de XRPL:
+// TakerGets/TakerPays usan XrplCurrencyAmount, ya que una Offer
+// siempre intercambia XRP por una moneda emitida (o viceversa),
+// nunca XRP por XRP.
+final offer = XrplOfferCreate(
+  account: wallet.classicAddress,
+  takerGets: const XrplCurrencyAmount.xrp('1000000'), // 1 XRP
+  takerPays: XrplCurrencyAmount.issued(
+    currency: 'USD',
+    issuer: 'rSomeIssuerAddress...',
+    value: '0.5',
+  ),
+);
+final result = await sendTransaction(connection, offer, wallet);
 print(result['meta']['TransactionResult']); // ej. "tesSUCCESS"
 ```
 
