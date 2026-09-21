@@ -5,6 +5,96 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.1-dev
+
+Phase 5 in progress: `OfferCreate` and `OfferCancel`, the first two
+transaction types for XRPL's decentralized exchange, placing and
+removing an Offer to trade one currency for another.
+
+### Added
+
+- `XrplCurrencyAmount` in a new `lib/src/transactions/values/` folder:
+  represents an amount that is either plain XRP or an issued currency,
+  mutually exclusively, for use by `TakerGets`/`TakerPays` and future
+  Phase 5 value types (`XrplPathStep`, `XrplAuthAccount`)
+- `XrplOfferCreate`, `XrplOfferCancel` in `lib/src/transactions/models/`:
+  the two DEX transaction models, following the existing
+  `XrplPayment`/`XrplTrustSet` pattern; `XrplOfferCreateFlags`
+  (`tfPassive`, `tfImmediateOrCancel`, `tfFillOrKill`)
+- `TakerGets`, `TakerPays`, `Expiration`, `OfferSequence` field
+  definitions, and the `OfferCreate`/`OfferCancel` `TransactionType`
+  codes, verified against a live Testnet `server_definitions`
+  response
+- `XrplTransactionSerializer` extended with `_encodeEitherAmount`, so
+  `TakerGets`/`TakerPays` serialize correctly whether they're XRP
+  drops or an issued-currency object
+- 31 new tests (263 -> 294), including integration tests against the
+  real public Testnet server: creating an Offer and confirming a
+  `CreatedNode` of type `Offer` in its metadata, cancelling it and
+  confirming the matching `DeletedNode`, and cancelling a
+  non-existent `OfferSequence` to confirm the documented
+  `tesSUCCESS`-as-no-op behavior
+
+### Fixed
+
+- A pre-existing copy-paste bug in
+  `xrpl_field_definitions_test.dart`: several test groups were
+  asserting `transactionType.typeCode`/`fieldCode` instead of the
+  field actually under test
+- **`submitAndWait` silently discarded `submit()`'s preliminary
+  result.** A transaction rejected outright by the server with a
+  `tem*` (malformed) or `tef*` result - for example
+  `temBAD_SEQUENCE`, when `OfferSequence` isn't lower than the
+  transaction's own `Sequence` - is never relayed or retried, and
+  will never be included in any ledger. Without inspecting this
+  result, `submitAndWait` entered its normal polling loop regardless,
+  waiting out the full `LastLedgerSequence` expiration window (tens
+  of seconds to minutes) only to report a generic "not validated"
+  error that hid the real, already-known reason. Found via a real
+  `OfferCancel` integration test; now fails immediately with the
+  server's actual `engine_result` and message
+- `example/phase4/signing_example.dart` built its `Payment` with a
+  hardcoded placeholder `Account` while signing with a freshly
+  generated, different wallet - `sign()`'s account-matching
+  validation (added in the `0.4.0-dev` closing audit) made this fail
+  every time. Found by actually running the full example script end
+  to end while verifying the new Phase 5 examples; fixed to use the
+  signing wallet's own address instead
+
+### Design Decisions
+
+- Every new field definition and the full binary serializer extension
+  were verified against the same official `OfferCreate` worked
+  example decoded byte-by-byte during Phase 4 - not just tested
+  in isolation, but confirmed to reproduce the exact published hex,
+  field by field, including canonical field ordering
+  (`TakerPays` before `TakerGets` before `Fee`, since `Amount` fields
+  sort by field code)
+- Chose `XrplCurrencyAmount` (a dedicated value type) over separate
+  optional XRP/issued-currency fields, which risked invalid
+  combinations at the API level - the same reasoning already applied
+  to `XrplPayment`/`XrplTrustSet` in Phase 4
+- The `OfferCreate`/`OfferCancel` integration test requests a
+  self-issued currency (the account both creates the Offer and issues
+  the currency it requests) instead of funding a second wallet and
+  configuring a `TrustSet` - an issuer never needs a trust line for
+  its own issued currency, and this keeps the test focused on the
+  Offer transactions themselves rather than trust-line setup
+- `pre_commit.ps1` now runs tests with `--concurrency=1`, so
+  integration tests against the same Testnet account never execute
+  in parallel across test files - a precaution taken while
+  investigating what turned out to be the `temBAD_SEQUENCE` bug
+  above, kept since Phase 5 will keep adding integration tests that
+  share accounts (Path Finding and AMM both need multiple accounts)
+
+### Status
+
+Phase 5 in progress: `OfferCreate` and `OfferCancel` complete and
+verified against the real public Testnet server, including a genuine
+bug fix in `submitAndWait` found through that verification.  
+Not ready for production use.  
+Next: Path Finding (`0.4.2-dev`).
+
 ## 0.4.0-dev
 
 **Phase 4 complete.** This release consolidates Phase 4: the full
