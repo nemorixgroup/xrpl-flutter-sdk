@@ -1,14 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
-import 'package:xrpl_flutter_sdk/src/connection/xrpl_endpoint.dart';
-import 'package:xrpl_flutter_sdk/src/crypto/xrpl_key_algorithm.dart';
-import 'package:xrpl_flutter_sdk/src/transactions/models/xrpl_offer_cancel.dart';
-import 'package:xrpl_flutter_sdk/src/transactions/models/xrpl_offer_create.dart';
-import 'package:xrpl_flutter_sdk/src/transactions/values/xrpl_currency_amount.dart';
-import 'package:xrpl_flutter_sdk/src/transactions/xrpl_autofill.dart';
-import 'package:xrpl_flutter_sdk/src/transactions/xrpl_signer.dart';
-import 'package:xrpl_flutter_sdk/src/transactions/xrpl_submit_and_wait.dart';
-import 'package:xrpl_flutter_sdk/src/wallet/xrpl_wallet.dart';
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
 
 // Integration test: XrplOfferCreate and XrplOfferCancel against the
 // real public Testnet server.
@@ -158,5 +149,48 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );
+
+    test(
+        'throws immediately when the server rejects a malformed '
+        'OfferCancel (temBAD_SEQUENCE), instead of waiting out the '
+        'full expiration window', () async {
+      final connection = XrplConnection(XrplEndpoint.testnet);
+      await connection.connect();
+
+      final wallet = await XrplWallet.fromSeed(
+        'sEd7pqNMLD6zoY74h63hsziBfBCmwVp',
+        algorithm: XrplKeyAlgorithm.ed25519,
+      );
+
+      // OfferSequence >= the transaction's own Sequence is invalid
+      // per the official specification - rippled rejects it as
+      // temBAD_SEQUENCE immediately, before it ever reaches a ledger.
+      final offerCancel = XrplOfferCancel(
+        account: wallet.classicAddress,
+        offerSequence: 999999999,
+      );
+
+      final filled = await autofill(connection, offerCancel);
+      final signed = await sign(filled.toJson(), wallet);
+
+      final stopwatch = Stopwatch()..start();
+      await expectLater(
+        submitAndWait(connection, signed),
+        throwsA(
+          isA<XrplConnectionException>().having(
+            (e) => e.message,
+            'message',
+            contains('temBAD_SEQUENCE'),
+          ),
+        ),
+      );
+      stopwatch.stop();
+
+      // A world away from the ~60-100 second LastLedgerSequence
+      // expiration window this would have waited out before this fix.
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 15)));
+
+      await connection.disconnect();
+    }, timeout: const Timeout(Duration(minutes: 2)),);
   });
 }
