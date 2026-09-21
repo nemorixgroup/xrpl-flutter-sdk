@@ -18,7 +18,6 @@
 import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
 
 Future<void> createOfferExample() async {
-
   final connection = XrplConnection(XrplEndpoint.testnet);
   await connection.connect();
 
@@ -47,7 +46,6 @@ Future<void> createOfferExample() async {
 }
 
 Future<void> cancelOfferExample() async {
-
   final connection = XrplConnection(XrplEndpoint.testnet);
   await connection.connect();
 
@@ -87,5 +85,4 @@ Future<void> cancelOfferExample() async {
   print('Result: ${meta['TransactionResult']}');
 
   await connection.disconnect();
-
 }
