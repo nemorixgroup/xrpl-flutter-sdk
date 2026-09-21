@@ -19,7 +19,7 @@ flutter analyze --fatal-infos
 if ($LASTEXITCODE -ne 0) { Write-Host "Analysis failed" -ForegroundColor Red; exit 1 }
 
 Write-Host "==> Running tests with coverage..." -ForegroundColor Cyan
-flutter test --coverage
+flutter test --coverage --concurrency=1
 if ($LASTEXITCODE -ne 0) { Write-Host "Tests failed" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
