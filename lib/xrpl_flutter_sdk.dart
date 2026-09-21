@@ -49,3 +49,8 @@ export 'src/transactions/xrpl_submit_and_wait.dart';
 export 'src/transactions/xrpl_send_transaction.dart';
 export 'src/transactions/xrpl_send_payment.dart';
 export 'src/codec/xrpl_hex_codec.dart';
+
+// Phase 5: DEX & cross-currency.
+export 'src/transactions/values/xrpl_currency_amount.dart';
+export 'src/transactions/models/xrpl_offer_create.dart';
+export 'src/transactions/models/xrpl_offer_cancel.dart';

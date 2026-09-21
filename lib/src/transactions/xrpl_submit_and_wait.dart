@@ -47,11 +47,16 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction_hash.dart';
 /// Throws an [XrplConnectionException] if [pollInterval] is not
 /// positive, if [signedTransactionJson] has no `LastLedgerSequence`
 /// (needed to know when to stop waiting) or has one with an
-/// unexpected type, if the transaction's `LastLedgerSequence` is
-/// passed by the latest validated ledger without the transaction
-/// being validated, if the server's response for `validated_ledger`
-/// or its `seq` doesn't have the expected shape, or if
-/// `submit`/`tx`/`serverInfo` themselves throw for any other reason.
+/// unexpected type, if the submitted transaction is rejected outright
+/// by the server with a `tem*` (malformed) or `tef*` (failure) result
+/// - these are definitive per the official specification and will
+/// never be included in a ledger, so this fails immediately rather
+/// than waiting out the full expiration window - if the transaction's
+/// `LastLedgerSequence` is passed by the latest validated ledger
+/// without the transaction being validated, if the server's response
+/// for `validated_ledger` or its `seq` doesn't have the expected
+/// shape, or if `submit`/`tx`/`serverInfo` themselves throw for any
+/// other reason.
 ///
 /// Example:
 /// ```dart
@@ -95,7 +100,30 @@ Future<Map<String, dynamic>> submitAndWait(
   final txBlob = XrplHexCodec.bytesToHex(serialized);
   final txHash = transactionHash(signedTransactionJson);
 
-  await submit(connection, txBlob);
+  final submitResult = await submit(connection, txBlob);
+
+  // "tem" (malformed) and "tef" (failure) results are definitive:
+  // per the official specification, a transaction rejected with one
+  // of these codes is never relayed or retried, and will never be
+  // included in any ledger. Failing immediately here, instead of
+  // entering the polling loop below, avoids waiting out the full
+  // LastLedgerSequence window (tens of seconds to minutes) only to
+  // report a generic "not validated" error that hides the real,
+  // already-known reason. "tes" (preliminary success), "tec" (failed
+  // but still claims the fee and is included in a ledger), and "ter"
+  // (local error, may be retried by the server itself) are all left
+  // to the normal polling below, since each of these can still result
+  // in a transaction that is genuinely included and validated.
+  final engineResult = submitResult['engine_result'] as String?;
+  if (engineResult != null &&
+      (engineResult.startsWith('tem') || engineResult.startsWith('tef'))) {
+    final message =
+        submitResult['engine_result_message'] as String? ?? engineResult;
+    throw XrplConnectionException(
+      'Transaction $txHash was rejected by the server and will never '
+      'be included in a ledger ($engineResult: $message).',
+    );
+  }
 
   while (true) {
     Map<String, dynamic>? result;

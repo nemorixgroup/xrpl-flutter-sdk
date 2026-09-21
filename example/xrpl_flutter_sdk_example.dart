@@ -19,8 +19,8 @@
 //   Phase 1 - Cryptographic Fundamentals (seeds, secp256k1, Ed25519) - DONE
 //   Phase 2 - Addresses (classic address, X-address, base58 XRPL codec) - DONE
 //   Phase 3 - Connection Layer (WebSocket/JSON-RPC, Mainnet/Testnet/Devnet) - DONE
-//   Phase 4 - Core Transactions (Payment, TrustSet, sign, submit) - CURRENT
-//   Phase 5 - DEX & Cross-Currency (OfferCreate, AMM, path finding)
+//   Phase 4 - Core Transactions (Payment, TrustSet, sign, submit) - DONE
+//   Phase 5 - DEX & Cross-Currency (OfferCreate, AMM, path finding) - CURRENT
 //   Phase 6 - Conditionals & Channels (Escrow, Payment Channels, Checks)
 //   Phase 7 - Tokenization (NFTs, MPT, Clawback)
 //   Phase 8 - Account Security & Compliance (multi-sign, Tickets, Credentials)
@@ -40,6 +40,7 @@ import 'phase3/subscriptions_example.dart';
 import 'phase4/transaction_model_example.dart';
 import 'phase4/signing_example.dart';
 import 'phase4/submission_example.dart';
+import 'phase5/offer_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -99,4 +100,12 @@ Future<void> main() async {
 
   print('\n--- 0.3.3-dev: Submission (Option 2 - detailed) ---');
   await detailedPaymentExample();
+
+  // Phase 5 - DEX & Cross-Currency
+  // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-5
+  print('\n--- 0.4.1-dev: OfferCreate ---');
+  await createOfferExample();
+
+  print('\n--- 0.4.1-dev: OfferCancel ---');
+  await cancelOfferExample();
 }
