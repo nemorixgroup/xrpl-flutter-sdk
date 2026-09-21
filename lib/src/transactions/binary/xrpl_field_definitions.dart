@@ -54,8 +54,9 @@ class XrplFieldDefinition {
 }
 
 /// The binary serialization definitions for every field this SDK
-/// currently needs, to build `XrplPayment` and `XrplTrustSet`
-/// transactions in their canonical binary format for signing.
+/// currently needs, to build `XrplPayment`, `XrplTrustSet`,
+/// `XrplOfferCreate`, and `XrplOfferCancel` transactions in their
+/// canonical binary format for signing.
 ///
 /// These values are permanent, not configuration: a Field ID is part
 /// of how a transaction's signing hash is calculated, so changing one
@@ -63,7 +64,7 @@ class XrplFieldDefinition {
 /// transaction and signature on the XRP Ledger - see
 /// `docs-sdk/phase-4/signing/` for the full reasoning.
 /// Adding fields for transaction types this SDK doesn't support yet
-/// (Phase 5 onward) is normal and expected; re-run
+/// (AMM, path finding) is normal and expected; re-run
 /// `scripts/regenerate_field_definitions.dart` and extend this class
 /// when that happens.
 ///
@@ -170,6 +171,38 @@ class XrplFieldDefinitions {
     fieldIdBytes: [0x63],
     isVLEncoded: false,
   );
+
+  /// Binary definition for the `TakerGets` field.
+  static const takerGets = XrplFieldDefinition(
+    typeCode: 6,
+    fieldCode: 5,
+    fieldIdBytes: [0x65],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `TakerPays` field.
+  static const takerPays = XrplFieldDefinition(
+    typeCode: 6,
+    fieldCode: 4,
+    fieldIdBytes: [0x64],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `Expiration` field.
+  static const expiration = XrplFieldDefinition(
+    typeCode: 2,
+    fieldCode: 10,
+    fieldIdBytes: [0x2A],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `OfferSequence` field.
+  static const offerSequence = XrplFieldDefinition(
+    typeCode: 2,
+    fieldCode: 25,
+    fieldIdBytes: [0x20, 0x19],
+    isVLEncoded: false,
+  );
 }
 
 /// The numeric `TransactionType` values for the transaction types this
@@ -184,4 +217,12 @@ class XrplTransactionTypeCode {
 
   /// The numeric `TransactionType` value for a `TrustSet` transaction.
   static const trustSet = 20;
+
+  /// The numeric `TransactionType` value for an `OfferCreate`
+  /// transaction.
+  static const offerCreate = 7;
+
+  /// The numeric `TransactionType` value for an `OfferCancel`
+  /// transaction.
+  static const offerCancel = 8;
 }

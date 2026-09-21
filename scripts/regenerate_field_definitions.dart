@@ -1,11 +1,16 @@
+// Prints are this maintenance script's actual output - it's a
+// command-line tool, not part of the public SDK, so avoid_print
+// doesn't apply here.
+// ignore_for_file: avoid_print
+
 // Internal maintenance tool - NOT part of the public SDK API.
 //
-// Regenerates the field definitions this SDK's binary codec (0.3.2-dev)
-// relies on, by querying a real XRPL server's `server_definitions`
-// command - rather than hand-transcribing values from documentation or
-// a JSON file, which is exactly the kind of manual-transcription
-// mistake this SDK has caught before (see the Phase 1 Ed25519 prefix
-// bug in docs-sdk/).
+// Regenerates the field definitions this SDK's binary codec relies
+// on, by querying a real XRPL server's `server_definitions` command -
+// rather than hand-transcribing values from documentation or a JSON
+// file, which is exactly the kind of manual-transcription mistake
+// this SDK has caught before (see the Phase 1 Ed25519 prefix bug in
+// docs-sdk/).
 //
 // This is run manually by maintainers, only when adding support for a
 // new transaction type or field - never at runtime by the SDK itself
@@ -15,13 +20,16 @@
 //
 // Usage:
 //   dart run scripts/regenerate_field_definitions.dart
-// ignore_for_file: avoid_print
+//
+// Prints the Field ID (and other properties) for every field this SDK
+// currently needs, computed from the live server response - not
+// copied from any external library or documentation page.
 
 import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
 
-// Every field this SDK currently needs to serialize Payment and
-// TrustSet transactions (plus their shared signing fields). Extend
-// this list when adding support for a new transaction type.
+// Every field this SDK currently needs across every transaction type
+// it supports. Extend this list when adding support for a new
+// transaction type.
 const _neededFields = [
   'TransactionType',
   'Flags',
@@ -35,12 +43,18 @@ const _neededFields = [
   'Account',
   'Destination',
   'LimitAmount',
+  'TakerGets',
+  'TakerPays',
+  'Expiration',
+  'OfferSequence',
 ];
 
-// Independently confirmed earlier via official documentation and a
-// cross-checked third-party implementation's test suite - used here
-// purely as a sanity check against the live server response, not as
-// the source of truth.
+// Independently confirmed earlier - either via official documentation
+// and a cross-checked third-party implementation's test suite
+// (Phase 4's Payment/TrustSet fields), or by decoding the official
+// OfferCreate worked example byte-by-byte (Phase 5's Offer fields) -
+// used here purely as a sanity check against the live server
+// response, not as the source of truth.
 const _knownGoodFieldIdBytes = {
   'TransactionType': [0x12],
   'Flags': [0x22],
@@ -49,6 +63,10 @@ const _knownGoodFieldIdBytes = {
   'SigningPubKey': [0x73],
   'TxnSignature': [0x74],
   'Account': [0x81],
+  'TakerPays': [0x64],
+  'TakerGets': [0x65],
+  'Expiration': [0x2A],
+  'OfferSequence': [0x20, 0x19],
 };
 
 void main() async {
@@ -66,6 +84,8 @@ void main() async {
   print('// TransactionType values needed:');
   print('//   Payment = ${transactionTypes['Payment']}');
   print('//   TrustSet = ${transactionTypes['TrustSet']}');
+  print('//   OfferCreate = ${transactionTypes['OfferCreate']}');
+  print('//   OfferCancel = ${transactionTypes['OfferCancel']}');
   print('');
 
   for (final fieldName in _neededFields) {
