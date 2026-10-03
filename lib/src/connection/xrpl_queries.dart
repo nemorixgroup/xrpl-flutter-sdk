@@ -1,5 +1,4 @@
-import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
-import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
+import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
 
 /// Requests the connected server's own status: build version, sync
 /// state, validated ledger range, and related operational info.
@@ -252,6 +251,112 @@ Future<Map<String, dynamic>> submit(
   if (result is! Map<String, dynamic>) {
     throw const XrplConnectionException(
       'Unexpected submit response shape: missing or invalid "result" field.',
+    );
+  }
+  return result;
+}
+
+/// Converts a `ripple_path_find`/`path_find` destination/send-max amount
+/// to its JSON shape: either the literal `"-1"` (maximum deliverable,
+/// per the official specification) or an `XrplCurrencyAmount`.
+///
+/// Throws an [ArgumentError] for any other type, so a mistake here fails
+/// immediately and clearly, not as a confusing server-side error later.
+dynamic _pathFindAmountJson(Object amount) {
+  if (amount is String && amount == '-1') return amount;
+  if (amount is XrplCurrencyAmount) return amount.toJson();
+  throw ArgumentError(
+    'amount must be the literal string "-1" or an XrplCurrencyAmount, '
+    'got: $amount',
+  );
+}
+
+/// Requests a one-time snapshot of possible payment paths from
+/// [sourceAccount] to [destinationAccount], for use in a cross-currency
+/// `Payment` transaction's `Paths` field.
+///
+/// [destinationAmount] is either an [XrplCurrencyAmount] (the amount the
+/// recipient should receive) or the literal string `"-1"`, which asks
+/// for the maximum amount deliverable within [sendMax].
+///
+/// [sourceCurrencies] (at most 18 entries) and [sendMax] are mutually
+/// exclusive per the official specification: providing both throws an
+/// [ArgumentError], same as [sourceCurrencies] exceeding 18 entries.
+///
+/// Per the official specification, the returned paths are not guaranteed
+/// to be optimal, and a malicious or overloaded server could return
+/// suboptimal paths; compare results across multiple independent servers
+/// for anything where that matters. For continuous updates as ledger
+/// conditions change, use `path_find` instead (see `path_find.dart`).
+///
+/// Throws an `XrplConnectionException` (via [XrplConnection.request])
+/// if not connected, the request times out, or the server returns an
+/// error (for example `srcActMalformed`, `dstActMalformed`).
+///
+/// Example:
+/// ```dart
+/// final result = await ripplePathFind(
+///   connection,
+///   sourceAccount: wallet.classicAddress,
+///   destinationAccount: destination,
+///   destinationAmount: XrplCurrencyAmount.issued(
+///     currency: 'USD',
+///     issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+///     value: '0.001',
+///   ),
+/// );
+/// print(result['alternatives']); // possible paths, or [] if none found
+/// ```
+///
+/// See:
+/// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/path-and-order-book-methods/ripple_path_find
+Future<Map<String, dynamic>> ripplePathFind(
+  XrplConnection connection, {
+  required String sourceAccount,
+  required String destinationAccount,
+  required Object destinationAmount,
+  List<XrplSourceCurrency>? sourceCurrencies,
+  Object? sendMax,
+  String? ledgerHash,
+  String? ledgerIndex,
+}) async {
+  if (sourceCurrencies != null && sendMax != null) {
+    throw ArgumentError(
+      'sourceCurrencies and sendMax are mutually exclusive per the '
+      'official specification; provide at most one.',
+    );
+  }
+  if (sourceCurrencies != null && sourceCurrencies.length > 18) {
+    throw ArgumentError(
+      'sourceCurrencies accepts at most 18 entries per the official '
+      'specification, got ${sourceCurrencies.length}.',
+    );
+  }
+
+  // Build the request with only the fields that were actually
+  // provided, matching the convention already used by accountInfo.
+  final params = <String, dynamic>{
+    'source_account': sourceAccount,
+    'destination_account': destinationAccount,
+    'destination_amount': _pathFindAmountJson(destinationAmount),
+  };
+  if (sourceCurrencies != null) {
+    params['source_currencies'] =
+        sourceCurrencies.map((entry) => entry.toJson()).toList();
+  }
+  if (sendMax != null) params['send_max'] = _pathFindAmountJson(sendMax);
+  if (ledgerHash != null) params['ledger_hash'] = ledgerHash;
+  if (ledgerIndex != null) params['ledger_index'] = ledgerIndex;
+
+  final response = await connection.request('ripple_path_find', params);
+
+  final result = response['result'];
+  // Same defensive, intentionally-untested pattern as serverInfo,
+  // accountInfo, fee, tx, and submit above.
+  if (result is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected ripple_path_find response shape: missing or invalid '
+      '"result" field.',
     );
   }
   return result;
