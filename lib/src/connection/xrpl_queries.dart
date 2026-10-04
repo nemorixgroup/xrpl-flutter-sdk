@@ -1,3 +1,4 @@
+import 'package:xrpl_flutter_sdk/src/connection/xrpl_path_find_amounts.dart';
 import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
 
 /// Requests the connected server's own status: build version, sync
@@ -256,28 +257,22 @@ Future<Map<String, dynamic>> submit(
   return result;
 }
 
-/// Converts a `ripple_path_find`/`path_find` destination/send-max amount
-/// to its JSON shape: either the literal `"-1"` (maximum deliverable,
-/// per the official specification) or an `XrplCurrencyAmount`.
-///
-/// Throws an [ArgumentError] for any other type, so a mistake here fails
-/// immediately and clearly, not as a confusing server-side error later.
-dynamic _pathFindAmountJson(Object amount) {
-  if (amount is String && amount == '-1') return amount;
-  if (amount is XrplCurrencyAmount) return amount.toJson();
-  throw ArgumentError(
-    'amount must be the literal string "-1" or an XrplCurrencyAmount, '
-    'got: $amount',
-  );
-}
-
 /// Requests a one-time snapshot of possible payment paths from
 /// [sourceAccount] to [destinationAccount], for use in a cross-currency
 /// `Payment` transaction's `Paths` field.
 ///
 /// [destinationAmount] is either an [XrplCurrencyAmount] (the amount the
-/// recipient should receive) or the literal string `"-1"`, which asks
-/// for the maximum amount deliverable within [sendMax].
+/// recipient should receive) or the literal string `"-1"`. Per the
+/// official specification, `-1` asks for a path that delivers as much as
+/// possible while spending no more than [sendMax] (if provided). The
+/// literal `"-1"` is the XRP form of that request; for an issued
+/// currency, use an [XrplCurrencyAmount.issued] with `value: '-1'`.
+///
+/// [sendMax] (the most the sender is willing to spend) must be an
+/// [XrplCurrencyAmount] - unlike [destinationAmount], it does not accept
+/// the `"-1"` literal, since the official specification only defines
+/// that shortcut for `destination_amount`. Passing `"-1"` (or anything
+/// else that isn't an [XrplCurrencyAmount]) throws an [ArgumentError].
 ///
 /// [sourceCurrencies] (at most 18 entries) and [sendMax] are mutually
 /// exclusive per the official specification: providing both throws an
@@ -287,7 +282,7 @@ dynamic _pathFindAmountJson(Object amount) {
 /// to be optimal, and a malicious or overloaded server could return
 /// suboptimal paths; compare results across multiple independent servers
 /// for anything where that matters. For continuous updates as ledger
-/// conditions change, use `path_find` instead (see `path_find.dart`).
+/// conditions change, use `path_find` instead (see [pathFindCreate]).
 ///
 /// Throws an `XrplConnectionException` (via [XrplConnection.request])
 /// if not connected, the request times out, or the server returns an
@@ -338,13 +333,13 @@ Future<Map<String, dynamic>> ripplePathFind(
   final params = <String, dynamic>{
     'source_account': sourceAccount,
     'destination_account': destinationAccount,
-    'destination_amount': _pathFindAmountJson(destinationAmount),
+    'destination_amount': pathFindDestinationAmountJson(destinationAmount),
   };
   if (sourceCurrencies != null) {
     params['source_currencies'] =
         sourceCurrencies.map((entry) => entry.toJson()).toList();
   }
-  if (sendMax != null) params['send_max'] = _pathFindAmountJson(sendMax);
+  if (sendMax != null) params['send_max'] = pathFindSendMaxJson(sendMax);
   if (ledgerHash != null) params['ledger_hash'] = ledgerHash;
   if (ledgerIndex != null) params['ledger_index'] = ledgerIndex;
 
