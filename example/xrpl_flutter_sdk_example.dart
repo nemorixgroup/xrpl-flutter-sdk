@@ -41,6 +41,7 @@ import 'phase4/transaction_model_example.dart';
 import 'phase4/signing_example.dart';
 import 'phase4/submission_example.dart';
 import 'phase5/offer_example.dart';
+import 'phase5/path_finding_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -108,4 +109,10 @@ Future<void> main() async {
 
   print('\n--- 0.4.1-dev: OfferCancel ---');
   await cancelOfferExample();
+
+  print('\n--- 0.4.2-dev: ripple_path_find ---');
+  await ripplePathFindExample();
+
+  print('\n--- 0.4.2-dev: path_find (streaming) ---');
+  await pathFindExample();
 }

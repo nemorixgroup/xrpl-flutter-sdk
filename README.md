@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.1-dev
+  xrpl_flutter_sdk: ^0.4.2-dev
 ```
 
 ```bash
@@ -188,6 +188,43 @@ final offer = XrplOfferCreate(
 );
 final result = await sendTransaction(connection, offer, wallet);
 print(result['meta']['TransactionResult']); // e.g. "tesSUCCESS"
+```
+
+```dart
+// ripple_path_find: a one-time snapshot of the payment paths between
+// two accounts. "alternatives" is empty when no route exists.
+final result = await ripplePathFind(
+  connection,
+  sourceAccount: wallet.classicAddress,
+  destinationAccount: 'rSomeRecipientAddress...',
+  destinationAmount: XrplCurrencyAmount.issued(
+    currency: 'USD',
+    issuer: 'rSomeIssuerAddress...',
+    value: '0.5',
+  ),
+);
+print(result['alternatives']); // possible paths, or [] if none found
+```
+
+```dart
+// path_find: a streaming subscription. pathFindCreate returns the
+// initial snapshot; later updates arrive on pathFindEvents as ledgers
+// close. Only one path_find request can be active per connection.
+final snapshot = await pathFindCreate(
+  connection,
+  sourceAccount: wallet.classicAddress,
+  destinationAccount: 'rSomeRecipientAddress...',
+  destinationAmount: XrplCurrencyAmount.issued(
+    currency: 'USD',
+    issuer: 'rSomeIssuerAddress...',
+    value: '0.5',
+  ),
+);
+connection.pathFindEvents.listen((update) {
+  print(update['alternatives']);
+});
+// Later, stop receiving updates.
+await pathFindClose(connection);
 ```
 
 ## Networks

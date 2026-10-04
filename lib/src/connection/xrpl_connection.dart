@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:meta/meta.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_endpoint.dart';
 import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 
@@ -31,16 +31,21 @@ import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 /// send/match/receive plumbing.
 ///
 /// It also exposes typed event streams ([ledgerEvents],
-/// [transactionEvents], [validationEvents], [serverEvents]) for XRPL
-/// subscription push messages. Per the official specification, these
-/// arrive as a genuinely different kind of message from request
-/// responses: a response echoes back the `id` the request was sent
-/// with, while a subscription event has no `id` at all and is
-/// instead identified by a `type` field (`"ledgerClosed"`,
-/// `"transaction"`, and so on). Splitting events into one stream per
-/// type - rather than a single generic stream the caller filters by
-/// `type` themselves - removes an entire class of typo-prone,
-/// silently-ignored-on-mismatch string comparisons from calling code.
+/// [transactionEvents], [validationEvents], [serverEvents],
+/// [pathFindEvents]) for XRPL subscription push messages. Per the
+/// official specification, these arrive as a genuinely different
+/// kind of message from request responses: a response echoes back
+/// the `id` the request was sent with, while a subscription event
+/// has no `id` at all and is instead identified by a `type` field
+/// (`"ledgerClosed"`, `"transaction"`, and so on). Splitting events
+/// into one stream per type - rather than a single generic stream
+/// the caller filters by `type` themselves - removes an entire class
+/// of typo-prone, silently-ignored-on-mismatch string comparisons
+/// from calling code.
+///
+/// [pathFindEvents] is the one exception to the "id means response,
+/// type means event" split above: see the dedicated check in
+/// [_handleIncomingMessage] for why.
 ///
 /// See:
 /// https://xrpl.org/docs/tutorials/get-started/get-started-http-websocket-apis
@@ -82,6 +87,16 @@ class XrplConnection {
       StreamController<Map<String, dynamic>>.broadcast();
   final StreamController<Map<String, dynamic>> _serverEventsController =
       StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _pathFindEventsController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  // Whether a path_find subscription is currently believed to be
+  // open on this connection. Maintained by the path_find helpers (see
+  // markPathFindSubscriptionActive) and reset on disconnect(). The
+  // server itself never errors when a second "create" request replaces
+  // an existing path_find subscription - it silently closes the old
+  // one instead - so this flag makes that state visible to the SDK.
+  bool _hasActivePathFindSubscription = false;
 
   /// Whether this connection currently has an open channel.
   ///
@@ -90,6 +105,30 @@ class XrplConnection {
   /// underlying socket is still alive, since a dropped connection is
   /// only discovered when a send or receive actually fails.
   bool get isConnected => _channel != null;
+
+  /// Whether a `path_find` subscription is currently open on this
+  /// connection, as tracked by `pathFindCreate` and `pathFindClose`.
+  /// Resets to `false` on [disconnect], since XRPL subscriptions do not
+  /// survive a reconnect.
+  ///
+  /// Only reflects subscriptions managed through those helpers; a raw
+  /// [request] with `command: 'path_find'` is not tracked.
+  bool get hasActivePathFindSubscription => _hasActivePathFindSubscription;
+
+  /// Records whether a `path_find` subscription is open. Called by the
+  /// `path_find` helpers after the server confirms a `create` or `close`.
+  ///
+  /// Internal to this SDK, not part of the public API. Kept as a method
+  /// here, rather than teaching the generic [request] about `path_find`,
+  /// so this class stays command-agnostic.
+  @internal
+  // A setter would need a same-named getter, and the public getter is
+  // deliberately named hasActivePathFindSubscription; the method name
+  // also makes the call sites in xrpl_path_find.dart read clearly.
+  // ignore: use_setters_to_change_properties
+  void markPathFindSubscriptionActive({required bool active}) {
+    _hasActivePathFindSubscription = active;
+  }
 
   /// Emits a message every time the server's `ledger` stream sends a
   /// `ledgerClosed` event (a new ledger version was validated).
@@ -112,6 +151,19 @@ class XrplConnection {
   /// `serverStatus` event. Requires subscribing first.
   Stream<Map<String, dynamic>> get serverEvents =>
       _serverEventsController.stream;
+
+  /// Emits a message every time the server sends a `path_find`
+  /// streaming update for the currently open path-finding
+  /// subscription (opened via a `path_find` "create" request).
+  ///
+  /// Unlike every other event this class exposes, these updates are
+  /// NOT selected purely by their `type` field: per the official
+  /// `path_find` specification, they also carry an `id` matching the
+  /// original "create" request, which is otherwise the signature of
+  /// a request *response*, not an event. See the dedicated check in
+  /// [_handleIncomingMessage] for how that's resolved.
+  Stream<Map<String, dynamic>> get pathFindEvents =>
+      _pathFindEventsController.stream;
 
   /// Opens the WebSocket connection to [endpoint].
   ///
@@ -181,6 +233,12 @@ class XrplConnection {
     _subscription = null;
     await channel.sink.close();
     _channel = null;
+
+    // XRPL subscriptions (including path_find) do not survive past
+    // the connection they were opened on, so whatever this instance
+    // believed about an open path_find subscription no longer holds
+    // once the channel is gone.
+    _hasActivePathFindSubscription = false;
 
     // Any request still waiting for a response at this point will
     // never get one now that the connection is closed - fail them
@@ -294,6 +352,22 @@ class XrplConnection {
     }
     final decoded = decodedRaw;
 
+    // path_find is the one message this SDK has to special-case
+    // before the generic id-based routing below. Per the official
+    // path_find specification, every asynchronous streaming update
+    // for an open subscription carries "type": "path_find" *and*
+    // reuses the "id" of the original "create" request - unlike
+    // every other event type, which has no "id" at all. Checked here
+    // means these updates are matched by type first, so they are
+    // never mistaken for a second response to that original request
+    // (whose Completer was already resolved and removed - a reused
+    // id would otherwise just vanish via the `completer?.complete`
+    // null-check below, a silent drop rather than a routing error).
+    if (decoded['type'] == 'path_find') {
+      _pathFindEventsController.add(decoded);
+      return;
+    }
+
     final id = decoded['id'];
     if (id is int) {
       final completer = _pendingRequests.remove(id);
@@ -312,6 +386,11 @@ class XrplConnection {
   /// Routes an incoming subscription event to the stream matching its
   /// [type], per the field-to-stream mapping documented at
   /// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/subscription-methods/subscribe
+  ///
+  /// `path_find` events never reach this method - they're intercepted
+  /// earlier in [_handleIncomingMessage], before the id/type split
+  /// this method assumes, because they carry both fields at once. See
+  /// the comment there.
   ///
   /// Event types this SDK does not yet expose a dedicated stream for
   /// are intentionally ignored rather than raising an error, since

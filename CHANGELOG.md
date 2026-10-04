@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.2-dev
+
+Phase 5 in progress: path finding, the two XRPL commands that discover
+how a cross-currency `Payment` can be routed: `ripple_path_find` (a
+one-time snapshot) and `path_find` (a streaming subscription).
+
+### Added
+
+- `XrplPathStep` and `XrplPath` in `lib/src/transactions/values/`: one
+  step of a payment path (`account`, `currency`, `issuer`) and an
+  ordered list of steps. `type`/`type_hex` are deliberately not
+  modeled, since the official documentation marks them deprecated
+- `XrplSourceCurrency`: an entry of `ripple_path_find`'s
+  `source_currencies` list
+- `ripplePathFind(connection, {sourceAccount, destinationAccount, destinationAmount, sourceCurrencies, sendMax, ledgerHash, ledgerIndex})`
+  in `xrpl_queries.dart`: the official `ripple_path_find` command, a
+  single request/response snapshot of possible payment paths
+- `pathFindCreate`, `pathFindStatus`, `pathFindClose` in a new
+  `lib/src/connection/xrpl_path_find.dart`: the `create`, `status` and
+  `close` subcommands of the official `path_find` streaming command
+- `XrplConnection.pathFindEvents`: typed broadcast stream for
+  `path_find` streaming updates, and
+  `XrplConnection.hasActivePathFindSubscription`
+- 56 new tests (294 -> 350), including integration tests against the
+  real public Testnet server: the full `path_find` lifecycle (create,
+  status, close), the one-active-request rule, `noPathRequest` errors,
+  and a real asynchronous update arriving on `pathFindEvents`
+
+### Design Decisions
+
+- `path_find` streaming updates carry `"type": "path_find"` and also
+  reuse the `id` of the original `create` request, unlike every other
+  subscription event, which has no `id`. Routing by `id` first would
+  silently drop them, since that request's response was already
+  matched and removed. `XrplConnection` now checks for this type
+  explicitly before the generic `id`-based routing, and a real update
+  reaching `pathFindEvents` is confirmed against the Testnet server
+- Only one `path_find` request can be active per connection, and the
+  server silently replaces an existing one instead of returning an
+  error. `pathFindCreate` makes that explicit: it throws a
+  `StateError` if one is already open, unless `replaceExisting: true`
+  is passed
+- `XrplConnection` stays command-agnostic: the open/closed state of a
+  `path_find` subscription is recorded by the helpers through an
+  `@internal` method, so `request()` never learns about `path_find`.
+  The state only reflects subscriptions managed through those
+  helpers, and a failed `close` leaves it unchanged
+- The `-1` shortcut ("deliver as much as possible") is only valid for
+  `destination_amount`, per the official specification: as the literal
+  `"-1"` for XRP, or as `value: '-1'` in an issued-currency amount.
+  `sendMax` rejects the literal with an `ArgumentError`; both commands
+  share one internal implementation of these amount rules instead of
+  duplicating it
+- `XrplPathStep` rejects `account` combined with `currency` or
+  `issuer`, and `currency: 'XRP'` combined with an `issuer` (XRP has
+  no issuer), both stated in the official documentation
+- `sourceCurrencies` (at most 18 entries) and `sendMax` are mutually
+  exclusive, validated client-side before any request is sent
+- The integration tests request a currency issued by the destination
+  account itself, as in `0.4.1-dev`, so no trust line setup is needed;
+  the server correctly returns no alternatives for it, which makes
+  them tests of the request flow and subscription lifecycle, not of
+  path quality
+- The `domain` parameter (PermissionedDEX) is out of scope for this
+  sub-version
+
+### Status
+
+Phase 5 in progress: `ripple_path_find` and `path_find` complete and
+verified against the real public Testnet server.  
+Not ready for production use.  
+Next: AMM (`0.4.3-dev`).
+
 ## 0.4.1-dev
 
 Phase 5 in progress: `OfferCreate` and `OfferCancel`, the first two
