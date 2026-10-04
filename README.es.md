@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.1-dev
+  xrpl_flutter_sdk: ^0.4.2-dev
 ```
 
 ```bash
@@ -187,6 +187,44 @@ final offer = XrplOfferCreate(
 );
 final result = await sendTransaction(connection, offer, wallet);
 print(result['meta']['TransactionResult']); // ej. "tesSUCCESS"
+```
+
+```dart
+// ripple_path_find: una foto puntual de los caminos de pago entre dos
+// cuentas. "alternatives" viene vacio cuando no existe ninguna ruta.
+final result = await ripplePathFind(
+  connection,
+  sourceAccount: wallet.classicAddress,
+  destinationAccount: 'rSomeRecipientAddress...',
+  destinationAmount: XrplCurrencyAmount.issued(
+    currency: 'USD',
+    issuer: 'rSomeIssuerAddress...',
+    value: '0.5',
+  ),
+);
+print(result['alternatives']); // caminos posibles, o [] si no hay ninguno
+```
+
+```dart
+// path_find: una suscripcion en streaming. pathFindCreate devuelve la
+// foto inicial; las actualizaciones posteriores llegan por
+// pathFindEvents a medida que se cierran los ledgers. Solo puede haber
+// un request path_find activo por conexion.
+final snapshot = await pathFindCreate(
+  connection,
+  sourceAccount: wallet.classicAddress,
+  destinationAccount: 'rSomeRecipientAddress...',
+  destinationAmount: XrplCurrencyAmount.issued(
+    currency: 'USD',
+    issuer: 'rSomeIssuerAddress...',
+    value: '0.5',
+  ),
+);
+connection.pathFindEvents.listen((update) {
+  print(update['alternatives']);
+});
+// Mas adelante, deja de recibir actualizaciones.
+await pathFindClose(connection);
 ```
 
 ## Redes
