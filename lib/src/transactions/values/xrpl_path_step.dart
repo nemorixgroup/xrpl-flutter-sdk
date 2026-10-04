@@ -15,6 +15,12 @@ import 'package:meta/meta.dart';
 /// consumer can violate by passing the wrong combination of fields, not an
 /// internal SDK invariant.
 ///
+/// The official specification also marks the [currency] + [issuer]
+/// combination as valid for non-XRP currencies only: XRP is the network's
+/// native asset and has no issuer, so a step combining `currency: 'XRP'`
+/// with a non-null [issuer] is rejected the same way, with its own
+/// [ArgumentError].
+///
 /// The legacy `type`/`type_hex` fields from the official JSON format are
 /// deliberately not modeled here: the official documentation marks them
 /// deprecated, and they carry no information beyond which of
@@ -39,12 +45,20 @@ class XrplPathStep {
   ///
   /// Throws an [ArgumentError] if [account] is provided together with
   /// either [currency] or [issuer], since the official specification
-  /// forbids that combination.
+  /// forbids that combination. Also throws an [ArgumentError] if
+  /// [currency] is `'XRP'` and [issuer] is provided, since XRP has no
+  /// issuer.
   XrplPathStep({this.account, this.currency, this.issuer}) {
     if (account != null && (currency != null || issuer != null)) {
       throw ArgumentError(
         'A PathStep with account must not also specify currency or '
         'issuer.',
+      );
+    }
+    if (currency == 'XRP' && issuer != null) {
+      throw ArgumentError(
+        'A PathStep with currency "XRP" must not also specify issuer, '
+        'since XRP has no issuer.',
       );
     }
   }
@@ -63,9 +77,9 @@ class XrplPathStep {
 
   /// Returns a copy of this step with the given fields replaced.
   ///
-  /// Still validates the account/currency/issuer exclusion rule, so
-  /// `copyWith` can throw an [ArgumentError] the same way the constructor
-  /// does.
+  /// Still validates both the account/currency/issuer exclusion rule and
+  /// the XRP/issuer exclusion rule, so `copyWith` can throw an
+  /// [ArgumentError] the same way the constructor does.
   XrplPathStep copyWith({String? account, String? currency, String? issuer}) {
     return XrplPathStep(
       account: account ?? this.account,
