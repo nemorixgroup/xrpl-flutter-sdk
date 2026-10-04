@@ -106,8 +106,7 @@ void main() {
     });
 
     test(
-      'throws ArgumentError when sendMax is neither "-1" nor an '
-      'XrplCurrencyAmount',
+      'throws ArgumentError when sendMax is not an XrplCurrencyAmount',
       () {
         expect(
           () => ripplePathFind(
@@ -118,6 +117,43 @@ void main() {
             sendMax: 'not-a-valid-amount',
           ),
           throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'throws ArgumentError when sendMax is the literal "-1" (only '
+      'destinationAmount accepts that shortcut)',
+      () {
+        expect(
+          () => ripplePathFind(
+            connection,
+            sourceAccount: 'rSource',
+            destinationAccount: 'rDestination',
+            destinationAmount: const XrplCurrencyAmount.xrp('1000000'),
+            sendMax: '-1',
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'accepts an issued-currency destinationAmount with value "-1"',
+      () async {
+        await expectLater(
+          ripplePathFind(
+            connection,
+            sourceAccount: 'rSource',
+            destinationAccount: 'rDestination',
+            destinationAmount: const XrplCurrencyAmount.issued(
+              currency: 'USD',
+              issuer: 'rIssuer',
+              value: '-1',
+            ),
+            sendMax: const XrplCurrencyAmount.xrp('1000000'),
+          ),
+          throwsA(isNot(isA<ArgumentError>())),
         );
       },
     );

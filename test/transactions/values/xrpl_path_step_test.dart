@@ -37,6 +37,13 @@ void main() {
       expect(step.issuer, 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B');
     });
 
+    test('constructs a currency-only step for XRP', () {
+      final step = XrplPathStep(currency: 'XRP');
+
+      expect(step.currency, 'XRP');
+      expect(step.issuer, isNull);
+    });
+
     test('constructs a step with none of the fields set', () {
       final step = XrplPathStep();
 
@@ -74,6 +81,13 @@ void main() {
       },
     );
 
+    test('throws ArgumentError when currency is XRP and issuer is set', () {
+      expect(
+        () => XrplPathStep(currency: 'XRP', issuer: 'rIssuer'),
+        throwsArgumentError,
+      );
+    });
+
     test('copyWith replaces only the given fields', () {
       final step = XrplPathStep(currency: 'USD', issuer: 'rIssuerOne');
 
@@ -88,6 +102,15 @@ void main() {
 
       expect(
         () => step.copyWith(account: 'rAccount'),
+        throwsArgumentError,
+      );
+    });
+
+    test('copyWith still enforces the XRP/issuer exclusion rule', () {
+      final step = XrplPathStep(currency: 'XRP');
+
+      expect(
+        () => step.copyWith(issuer: 'rIssuer'),
         throwsArgumentError,
       );
     });
