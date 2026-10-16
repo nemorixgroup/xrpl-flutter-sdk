@@ -27,6 +27,17 @@
 
 import 'package:xrpl_flutter_sdk/xrpl_flutter_sdk.dart';
 
+// Every transaction type this SDK supports. Extend this list when
+// adding support for a new transaction type.
+const _neededTransactionTypes = [
+  'Payment',
+  'TrustSet',
+  'OfferCreate',
+  'OfferCancel',
+  'AMMCreate',
+  'AccountSet',
+];
+
 // Every field this SDK currently needs across every transaction type
 // it supports. Extend this list when adding support for a new
 // transaction type.
@@ -47,14 +58,27 @@ const _neededFields = [
   'TakerPays',
   'Expiration',
   'OfferSequence',
+  'Amount2',
+  'TradingFee',
+  'SetFlag',
 ];
 
 // Independently confirmed earlier - either via official documentation
 // and a cross-checked third-party implementation's test suite
-// (Phase 4's Payment/TrustSet fields), or by decoding the official
-// OfferCreate worked example byte-by-byte (Phase 5's Offer fields) -
-// used here purely as a sanity check against the live server
-// response, not as the source of truth.
+// (Phase 4's Payment/TrustSet fields), by decoding the official
+// OfferCreate worked example byte-by-byte (Phase 5's Offer fields),
+// or by reading the official xrpl-py definitions programmatically
+// (Phase 5's AMMCreate fields) - used here purely as a sanity check
+// against the live server response, not as the source of truth.
+const _knownGoodTransactionTypeCodes = {
+  'Payment': 0,
+  'TrustSet': 20,
+  'OfferCreate': 7,
+  'OfferCancel': 8,
+  'AMMCreate': 35,
+  'AccountSet': 3,
+};
+
 const _knownGoodFieldIdBytes = {
   'TransactionType': [0x12],
   'Flags': [0x22],
@@ -67,6 +91,9 @@ const _knownGoodFieldIdBytes = {
   'TakerGets': [0x65],
   'Expiration': [0x2A],
   'OfferSequence': [0x20, 0x19],
+  'Amount2': [0x6B],
+  'TradingFee': [0x15],
+  'SetFlag': [0x20, 0x21],
 };
 
 void main() async {
@@ -82,10 +109,16 @@ void main() async {
 
   print('// Generated from a live server_definitions response.');
   print('// TransactionType values needed:');
-  print('//   Payment = ${transactionTypes['Payment']}');
-  print('//   TrustSet = ${transactionTypes['TrustSet']}');
-  print('//   OfferCreate = ${transactionTypes['OfferCreate']}');
-  print('//   OfferCancel = ${transactionTypes['OfferCancel']}');
+  for (final name in _neededTransactionTypes) {
+    final code = transactionTypes[name];
+    final expected = _knownGoodTransactionTypeCodes[name];
+    final check = expected == null
+        ? ''
+        : code == expected
+            ? ' [matches known-good value]'
+            : ' [MISMATCH! expected $expected]';
+    print('//   $name = $code$check');
+  }
   print('');
 
   for (final fieldName in _neededFields) {

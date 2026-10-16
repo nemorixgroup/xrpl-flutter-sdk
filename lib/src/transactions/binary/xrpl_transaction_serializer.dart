@@ -67,6 +67,11 @@ class XrplTransactionSerializer {
       (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'Flags')),
     );
     addIfPresent(
+      'SetFlag',
+      XrplFieldDefinitions.setFlag,
+      (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'SetFlag')),
+    );
+    addIfPresent(
       'Sequence',
       XrplFieldDefinitions.sequence,
       (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'Sequence')),
@@ -94,6 +99,11 @@ class XrplTransactionSerializer {
       (v) => XrplBinaryPrimitives.encodeUInt32(_asInt(v, 'OfferSequence')),
     );
     addIfPresent(
+      'TradingFee',
+      XrplFieldDefinitions.tradingFee,
+      (v) => XrplBinaryPrimitives.encodeUInt16(_asInt(v, 'TradingFee')),
+    );
+    addIfPresent(
       'SigningPubKey',
       XrplFieldDefinitions.signingPubKey,
       (v) => XrplBinaryPrimitives.encodeBlob(_asString(v, 'SigningPubKey')),
@@ -111,10 +121,18 @@ class XrplTransactionSerializer {
     addIfPresent(
       'Amount',
       XrplFieldDefinitions.amount,
-      // Amount is XRP-only for this SDK's current scope (see
-      // XrplPayment's own scope note) - always a plain drops string,
-      // never an issued-currency object, for this field specifically.
-      (v) => XrplAmountSerializer.encodeXrpAmount(_asString(v, 'Amount')),
+      // Accepts either shape XrplCurrencyAmount.toJson() can produce:
+      // a plain drops String (XRP), or a currency/issuer/value Map
+      // (issued currency). XrplPayment still only ever produces the
+      // XRP form (its model is XRP-only by design), but AMMCreate's
+      // Amount can be either, so this field can no longer assume
+      // XRP.
+      (v) => _encodeEitherAmount(v, 'Amount'),
+    );
+    addIfPresent(
+      'Amount2',
+      XrplFieldDefinitions.amount2,
+      (v) => _encodeEitherAmount(v, 'Amount2'),
     );
     addIfPresent(
       'Account',
@@ -134,10 +152,10 @@ class XrplTransactionSerializer {
     addIfPresent(
       'TakerGets',
       XrplFieldDefinitions.takerGets,
-      // Unlike Amount, TakerGets/TakerPays are never XRP-only -
-      // trading only XRP for XRP would make an Offer meaningless. So
-      // this accepts either shape XrplCurrencyAmount.toJson() can
-      // produce: a plain drops String, or a currency/issuer/value Map.
+      // TakerGets/TakerPays are never XRP-only - trading only XRP for
+      // XRP would make an Offer meaningless. So this accepts either
+      // shape XrplCurrencyAmount.toJson() can produce: a plain drops
+      // String, or a currency/issuer/value Map.
       (v) => _encodeEitherAmount(v, 'TakerGets'),
     );
     addIfPresent(
@@ -149,15 +167,18 @@ class XrplTransactionSerializer {
     final unknownKeys = json.keys.toSet().difference({
       'TransactionType',
       'Flags',
+      'SetFlag',
       'Sequence',
       'DestinationTag',
       'LastLedgerSequence',
       'Expiration',
       'OfferSequence',
+      'TradingFee',
       'SigningPubKey',
       'TxnSignature',
       'Fee',
       'Amount',
+      'Amount2',
       'Account',
       'Destination',
       'LimitAmount',
@@ -198,6 +219,10 @@ class XrplTransactionSerializer {
         return XrplTransactionTypeCode.offerCreate;
       case 'OfferCancel':
         return XrplTransactionTypeCode.offerCancel;
+      case 'AMMCreate':
+        return XrplTransactionTypeCode.ammCreate;
+      case 'AccountSet':
+        return XrplTransactionTypeCode.accountSet;
       default:
         throw XrplCryptoException('Unsupported TransactionType "$name"');
     }
@@ -214,7 +239,7 @@ class XrplTransactionSerializer {
   /// Encodes a value that may be either a plain drops String (XRP) or
   /// a `{currency, issuer, value}` Map (issued currency) - the two
   /// shapes `XrplCurrencyAmount.toJson()` can produce for
-  /// `TakerGets`/`TakerPays`.
+  /// `Amount`, `Amount2`, `TakerGets`, and `TakerPays`.
   static Uint8List _encodeEitherAmount(Object? value, String fieldName) {
     if (value is String) {
       return XrplAmountSerializer.encodeXrpAmount(value);
