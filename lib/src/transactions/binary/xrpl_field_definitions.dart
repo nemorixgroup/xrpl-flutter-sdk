@@ -55,8 +55,8 @@ class XrplFieldDefinition {
 
 /// The binary serialization definitions for every field this SDK
 /// currently needs, to build `XrplPayment`, `XrplTrustSet`,
-/// `XrplOfferCreate`, and `XrplOfferCancel` transactions in their
-/// canonical binary format for signing.
+/// `XrplOfferCreate`, `XrplOfferCancel`, and `XrplAmmCreate`
+/// transactions in their canonical binary format for signing.
 ///
 /// These values are permanent, not configuration: a Field ID is part
 /// of how a transaction's signing hash is calculated, so changing one
@@ -64,7 +64,7 @@ class XrplFieldDefinition {
 /// transaction and signature on the XRP Ledger - see
 /// `docs-sdk/phase-4/signing/` for the full reasoning.
 /// Adding fields for transaction types this SDK doesn't support yet
-/// (AMM, path finding) is normal and expected; re-run
+/// (the remaining AMM types) is normal and expected; re-run
 /// `scripts/regenerate_field_definitions.dart` and extend this class
 /// when that happens.
 ///
@@ -203,6 +203,36 @@ class XrplFieldDefinitions {
     fieldIdBytes: [0x20, 0x19],
     isVLEncoded: false,
   );
+
+  /// Binary definition for the `Amount2` field - the second asset an
+  /// `AMMCreate` funds its pool with. Confirmed from a live
+  /// `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
+  static const amount2 = XrplFieldDefinition(
+    typeCode: 6,
+    fieldCode: 11,
+    fieldIdBytes: [0x6B],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `TradingFee` field - an `AMMCreate`'s
+  /// trading fee, a UInt16 in units of 1/100,000. Confirmed from a
+  /// live `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
+  static const tradingFee = XrplFieldDefinition(
+    typeCode: 1,
+    fieldCode: 5,
+    fieldIdBytes: [0x15],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `SetFlag` field (AccountSet).
+  static const setFlag = XrplFieldDefinition(
+    typeCode: 2,
+    fieldCode: 33,
+    fieldIdBytes: [0x20, 0x21],
+    isVLEncoded: false,
+  );
 }
 
 /// The numeric `TransactionType` values for the transaction types this
@@ -225,4 +255,12 @@ class XrplTransactionTypeCode {
   /// The numeric `TransactionType` value for an `OfferCancel`
   /// transaction.
   static const offerCancel = 8;
+
+  /// The numeric `TransactionType` value for an `AMMCreate`
+  /// transaction.
+  static const ammCreate = 35;
+
+  /// The numeric `TransactionType` value for an `AccountSet`
+  /// transaction.
+  static const accountSet = 3;
 }

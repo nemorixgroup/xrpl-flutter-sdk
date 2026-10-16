@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.3-dev
+
+Phase 5 in progress: the first AMM transaction, `AMMCreate`, and the
+`amm_info` query that reads a pool back.
+
+### Added
+
+- `XrplAmmCreate` transaction model: `account`, `amount`, `amount2`,
+  `tradingFee` (0 to 1000, in units of 1/100000), validated at
+  construction
+- `XrplAsset`: identifies one side of a pool for `amm_info`
+  (`XrplAsset.xrp()` or `XrplAsset.issued(currency:, issuer:)`)
+- `ammInfo(connection, {asset, asset2, ammAccount, account, ledgerHash, ledgerIndex})`
+  in a new `lib/src/connection/xrpl_amm_info.dart`, returning a typed
+  `XrplAmmInfo` (with `XrplAmmAuctionSlot` and `XrplAmmVoteSlot`)
+- `serverState(connection)` in `xrpl_queries.dart`
+- `XrplOwnerReserveCostTransaction`: marker interface for transactions
+  whose fee must cover the owner reserve; `autofill` uses the
+  network's `reserve_inc` as the `Fee` of any transaction that
+  implements it when no fee is set
+- Binary codec support for `AMMCreate` (type 35), `Amount2`,
+  `TradingFee`, plus an issued-currency form for `Amount`
+- Minimal binary support for `AccountSet` (type 3, `SetFlag` only), with
+  no public model yet; it exists so the integration test and the
+  example can enable Default Ripple on a token issuer
+- 56 new tests (349 -> 405), including integration tests against the
+  real public Testnet server: a real pool is created, read back with
+  `ammInfo` by asset pair and by AMM account, and a second `AMMCreate`
+  for the same pair is rejected with `tecDUPLICATE`
+
+### Changed
+
+- `autofill` no longer treats every transaction the same way for the
+  fee: an explicit `fee` is always respected; otherwise a transaction
+  implementing `XrplOwnerReserveCostTransaction` gets `reserve_inc`
+  from `server_state`, and everything else keeps using the fee
+  strategy
+- `XrplTransactionSerializer`: `Amount` now accepts either an XRP
+  drops string or an issued-currency map (it was XRP-only)
+
+### Fixed
+
+- The `ripplePathFind` integration test failed intermittently with
+  `actNotFound` on a just-funded account; it now retries a few times,
+  since the faucet funds accounts in a validated ledger while
+  `ripple_path_find` reads the open ledger of the connected server
+
+### Design Decisions
+
+- `AMMCreate` must destroy at least the incremental owner reserve, not
+  the base fee. The fee is read from the network (`reserve_inc`)
+  instead of a hard-coded constant, matching xrpl.js. Fee strategy and
+  load scaling are not applied to this transaction; an explicit fee is
+  respected without validation
+- The fee behavior hangs off a marker interface, so `XrplTransaction`
+  and every existing transaction stay untouched, and later owner-reserve
+  transactions only need to implement the marker
+- `AMMCreate` uses `Amount` and `Amount2`, not `Asset`/`Asset2` (those
+  belong to other AMM transactions and to `amm_info`)
+- Only rules checkable without ledger state are validated client-side:
+  trading fee range, positive amounts, at most one XRP side, and two
+  different assets. Ledger-state rules (`tecDUPLICATE`, `tecNO_LINE`,
+  `tecUNFUNDED_AMM`, `terNO_RIPPLE`, ...) are left to the server
+- New field definitions were checked three ways: a live
+  `server_definitions` response, xrpl-py and xrpl.js, and the expected
+  binary vectors come from xrpl-py rather than from this SDK
+- `ammInfo.ledgerIndex` stays `Object?` (an integer or a keyword such
+  as `'validated'`) and is validated at runtime, as in the official
+  documentation
+- Creating a real pool needs two accounts (an issuer cannot hold its
+  own token) and Default Ripple on the issuer; the test and example set
+  that up with existing transactions and the minimal `AccountSet`
+
+### Status
+
+Phase 5 in progress: `AMMCreate` and `amm_info` complete and verified
+against the real public Testnet server.   
+Not ready for production use.   
+Next: AMMDeposit (`0.4.4-dev`).  
+
 ## 0.4.2-dev
 
 Phase 5 in progress: path finding, the two XRPL commands that discover

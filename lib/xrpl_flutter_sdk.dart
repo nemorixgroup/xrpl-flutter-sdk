@@ -57,3 +57,7 @@ export 'src/transactions/values/xrpl_currency_amount.dart';
 export 'src/transactions/values/xrpl_path_step.dart';
 export 'src/transactions/values/xrpl_source_currency.dart';
 export 'src/connection/xrpl_path_find.dart';
+export 'src/transactions/values/xrpl_asset.dart';
+export 'src/transactions/models/xrpl_amm_create.dart';
+export 'src/transactions/xrpl_owner_reserve_cost_transaction.dart';
+export 'src/connection/xrpl_amm_info.dart';

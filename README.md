@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.2-dev
+  xrpl_flutter_sdk: ^0.4.3-dev
 ```
 
 ```bash
@@ -225,6 +225,35 @@ connection.pathFindEvents.listen((update) {
 });
 // Later, stop receiving updates.
 await pathFindClose(connection);
+```
+
+```dart
+// AMMCreate: create a liquidity pool for XRP and an issued token.
+// The creator must already hold the token. The fee is read from the
+// network automatically (AMMCreate must burn the owner reserve).
+final ammCreate = XrplAmmCreate(
+  account: wallet.classicAddress,
+  amount: const XrplCurrencyAmount.xrp('5000000'), // 5 XRP
+  amount2: XrplCurrencyAmount.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+    value: '50',
+  ),
+  tradingFee: 500, // 0.5%, in units of 1/100000 (maximum 1000)
+);
+await sendTransaction(connection, ammCreate, wallet);
+
+// amm_info: read the pool back by its asset pair.
+final info = await ammInfo(
+  connection,
+  asset: const XrplAsset.xrp(),
+  asset2: XrplAsset.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+  ),
+);
+print(info.account); // the AMM's own account
+print(info.tradingFee); // 500
 ```
 
 ## Networks

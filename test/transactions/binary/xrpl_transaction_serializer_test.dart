@@ -205,6 +205,144 @@ void main() {
     });
   });
 
+  group('XrplTransactionSerializer.serialize - AMMCreate', () {
+    // Every expected hex below was produced by the official xrpl-py
+    // library's binary codec, not by this SDK, so these tests compare
+    // against an independent implementation.
+    test(
+        'XRP Amount and an issued Amount2 match the xrpl-py binary '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize({
+        'TransactionType': 'AMMCreate',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Amount': '10000000',
+        'Amount2': {
+          'currency': 'TST',
+          'issuer': 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd',
+          'value': '25',
+        },
+        'TradingFee': 500,
+        'Fee': '200000',
+        'Sequence': 7,
+        'LastLedgerSequence': 100,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+      });
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200231501f42400000007201b0000006461400000000098968068'
+          '4000000000030d406bd4c8e1bc9bf0400000000000000000000000'
+          '00005453540000000000f2f97c4301c80d60f86653a319aa7f302c'
+          '70b83b7321ed5f5ac8b98974a3ca843326d9b88cebd0560177b973'
+          'ee0b149f782911e5e8a9c18114f667b0ca50cc7709a220b0561b85'
+          'e53a48461fa8',
+        ),
+      );
+    });
+
+    test(
+        'an issued Amount (not only XRP) and the maximum TradingFee '
+        '1000 match the xrpl-py binary byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize({
+        'TransactionType': 'AMMCreate',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Amount': {
+          'currency': 'USD',
+          'issuer': 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          'value': '1.5',
+        },
+        'Amount2': {
+          'currency': 'TST',
+          'issuer': 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd',
+          'value': '25',
+        },
+        'TradingFee': 1000,
+        'Fee': '200000',
+        'Sequence': 8,
+        'LastLedgerSequence': 101,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+      });
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200231503e82400000008201b0000006561d485543df729c00000'
+          '000000000000000000000055534400000000000a20b3c85f482532'
+          'a9578dbb3950b85ca06594d1684000000000030d406bd4c8e1bc9b'
+          'f040000000000000000000000000005453540000000000f2f97c43'
+          '01c80d60f86653a319aa7f302c70b83b7321ed5f5ac8b98974a3ca'
+          '843326d9b88cebd0560177b973ee0b149f782911e5e8a9c18114f6'
+          '67b0ca50cc7709a220b0561b85e53a48461fa8',
+        ),
+      );
+    });
+
+    test(
+        'a TradingFee of 0 is serialized, not omitted, and matches '
+        'the xrpl-py binary byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize({
+        'TransactionType': 'AMMCreate',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Amount': '5000000',
+        'Amount2': {
+          'currency': 'TST',
+          'issuer': 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd',
+          'value': '10',
+        },
+        'TradingFee': 0,
+        'Fee': '200000',
+        'Sequence': 9,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+      });
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002315000024000000096140000000004c4b4068400000000003'
+          '0d406bd4c38d7ea4c6800000000000000000000000000054535400'
+          '00000000f2f97c4301c80d60f86653a319aa7f302c70b83b7321ed'
+          '5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f7829'
+          '11e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa8',
+        ),
+      );
+    });
+
+    test('throws a clear error when TradingFee is a String instead of an int',
+        () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMCreate',
+          'TradingFee': '500', // should be an int
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws a clear error when Amount2 is neither a String nor a Map', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMCreate',
+          'Amount2': 12345, // should be a String or a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws a clear error when Amount is neither a String nor a Map', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMCreate',
+          'Amount': 12345, // should be a String or a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
+
   group('XrplTransactionSerializer.serialize error handling', () {
     test('throws for an unsupported field name', () {
       expect(
@@ -291,6 +429,30 @@ void main() {
           },
         }),
         throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
+
+  group('XrplTransactionSerializer.serialize - AccountSet (minimal)', () {
+    test('SetFlag 8 matches the xrpl-py binary byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize({
+        'TransactionType': 'AccountSet',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'SetFlag': 8,
+        'Fee': '12',
+        'Sequence': 9,
+        'LastLedgerSequence': 102,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+      });
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200032400000009201b0000006620210000000868400000000000000c73'
+          '21ed5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911'
+          'e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa8',
+        ),
       );
     });
   });

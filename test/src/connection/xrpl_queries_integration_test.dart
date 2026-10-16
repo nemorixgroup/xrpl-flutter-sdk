@@ -70,6 +70,7 @@ void main() {
       () async {
         final connection = XrplConnection(XrplEndpoint.testnet);
         await connection.connect();
+        addTearDown(connection.disconnect);
 
         // source_account must actually exist on the ledger (hold at
         // least the account reserve), or the server rejects the
@@ -81,25 +82,39 @@ void main() {
         final source = await fundTestWallet(connection);
         final destination = await fundTestWallet(connection);
 
-        final result = await ripplePathFind(
-          connection,
-          sourceAccount: source.classicAddress,
-          destinationAccount: destination.classicAddress,
-          destinationAmount: XrplCurrencyAmount.issued(
-            currency: 'TST',
-            issuer: destination.classicAddress,
-            value: '1',
-          ),
-        );
+        // The faucet funds accounts in a validated ledger, but
+        // ripple_path_find reads the open ledger of the connected
+        // server, which can briefly lag and answer actNotFound for a
+        // just-funded account. Retry a few times before failing.
+        Map<String, dynamic>? result;
+        for (var attempt = 1; attempt <= 6; attempt++) {
+          try {
+            result = await ripplePathFind(
+              connection,
+              sourceAccount: source.classicAddress,
+              destinationAccount: destination.classicAddress,
+              destinationAmount: XrplCurrencyAmount.issued(
+                currency: 'TST',
+                issuer: destination.classicAddress,
+                value: '1',
+              ),
+            );
+            break;
+          } on XrplConnectionException catch (e) {
+            if (!e.toString().contains('actNotFound') || attempt == 6) {
+              rethrow;
+            }
+            await Future<void>.delayed(const Duration(seconds: 3));
+          }
+        }
 
-        expect(result['destination_account'], destination.classicAddress);
+        expect(result, isNotNull);
+        expect(result!['destination_account'], destination.classicAddress);
         expect(result['alternatives'], isA<List<dynamic>>());
         // No real order book path exists between these two freshly
         // funded, unrelated accounts for a currency only one of them
         // issues.
         expect(result['alternatives'], isEmpty);
-
-        await connection.disconnect();
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );

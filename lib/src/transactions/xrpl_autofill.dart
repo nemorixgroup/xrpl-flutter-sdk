@@ -2,6 +2,7 @@ import 'package:xrpl_flutter_sdk/src/connection/xrpl_connection.dart';
 import 'package:xrpl_flutter_sdk/src/connection/xrpl_queries.dart';
 import 'package:xrpl_flutter_sdk/src/exceptions/xrpl_connection_exception.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/xrpl_fee_strategy.dart';
+import 'package:xrpl_flutter_sdk/src/transactions/xrpl_owner_reserve_cost_transaction.dart';
 import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 
 /// Fills in [transaction]'s `sequence`, `fee`, and
@@ -34,6 +35,16 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 /// already behind the current ledger, guaranteeing the transaction
 /// expires before it can even be submitted.
 ///
+/// A transaction that implements [XrplOwnerReserveCostTransaction]
+/// (for example `XrplAmmCreate`) does not use the `fee` command's
+/// estimates for its `fee`. The official documentation requires such
+/// a transaction to destroy at least the network's incremental owner
+/// reserve, so `autofill` reads it from `server_state`
+/// (`validated_ledger.reserve_inc`, in drops) and uses it as the
+/// `fee`. For these transactions [feeStrategy] does not apply, and
+/// the network's load scaling is not applied either; under heavy load
+/// the server may ask for more, in which case pass your own `fee`.
+///
 /// Any field already set on [transaction] is left as-is - `autofill`
 /// only fills in what's missing, the same behavior `xrpl.js`
 /// documents for its own `autofill`.
@@ -41,9 +52,10 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 /// Throws an [XrplConnectionException] if [ledgerOffset] is negative,
 /// if not connected, if either request times out, if the server
 /// returns an error, or if the server's response for `Sequence`,
-/// `drops`, or `ledger_current_index` doesn't have the expected
-/// shape (defensive checks against a malformed response, not
-/// expected in practice from a real XRPL server).
+/// `drops`, `ledger_current_index`, or (for owner-reserve
+/// transactions) `reserve_inc` doesn't have the expected shape
+/// (defensive checks against a malformed response, not expected in
+/// practice from a real XRPL server).
 ///
 /// Example:
 /// ```dart
@@ -58,6 +70,8 @@ import 'package:xrpl_flutter_sdk/src/transactions/xrpl_transaction.dart';
 ///
 /// See:
 /// https://xrpl.org/docs/concepts/transactions/reliable-transaction-submission
+/// and
+/// https://xrpl.org/docs/concepts/transactions/transaction-cost
 Future<T> autofill<T extends XrplTransaction>(
   XrplConnection connection,
   T transaction, {
@@ -87,7 +101,13 @@ Future<T> autofill<T extends XrplTransaction>(
         'Unexpected fee response shape: missing or invalid "drops" field.',
       );
     }
-    feeValue = transaction.fee ?? _feeFor(feeStrategy, dropsRaw);
+    if (transaction.fee != null) {
+      feeValue = transaction.fee!;
+    } else if (transaction is XrplOwnerReserveCostTransaction) {
+      feeValue = await _lookUpOwnerReserveDrops(connection);
+    } else {
+      feeValue = _feeFor(feeStrategy, dropsRaw);
+    }
 
     final currentLedgerRaw = feeInfo['ledger_current_index'];
     if (currentLedgerRaw is! int) {
@@ -117,6 +137,32 @@ Future<int> _lookUpSequence(XrplConnection connection, String account) async {
     );
   }
   return sequenceRaw;
+}
+
+/// Reads the incremental owner reserve, in drops, from `server_state`.
+///
+/// This is the transaction cost of the transaction types that must
+/// destroy at least that reserve (see
+/// [XrplOwnerReserveCostTransaction]).
+Future<String> _lookUpOwnerReserveDrops(XrplConnection connection) async {
+  final state = await serverState(connection);
+
+  final validatedRaw = state['validated_ledger'];
+  if (validatedRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected server_state response shape: missing or invalid '
+      '"validated_ledger" field.',
+    );
+  }
+
+  final reserveRaw = validatedRaw['reserve_inc'];
+  if (reserveRaw is! int || reserveRaw <= 0) {
+    throw const XrplConnectionException(
+      'Unexpected server_state response shape: missing or invalid '
+      '"reserve_inc" field.',
+    );
+  }
+  return reserveRaw.toString();
 }
 
 String _feeFor(XrplFeeStrategy strategy, Map<String, dynamic> drops) {

@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.2-dev
+  xrpl_flutter_sdk: ^0.4.3-dev
 ```
 
 ```bash
@@ -225,6 +225,35 @@ connection.pathFindEvents.listen((update) {
 });
 // Mas adelante, deja de recibir actualizaciones.
 await pathFindClose(connection);
+```
+
+```dart
+// AMMCreate: crea un pool de liquidez para XRP y un token emitido.
+// El creador debe tener ya el token. El fee se lee de la red
+// automaticamente (AMMCreate debe quemar la reserva de propietario).
+final ammCreate = XrplAmmCreate(
+  account: wallet.classicAddress,
+  amount: const XrplCurrencyAmount.xrp('5000000'), // 5 XRP
+  amount2: XrplCurrencyAmount.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+    value: '50',
+  ),
+  tradingFee: 500, // 0.5%, en unidades de 1/100000 (maximo 1000)
+);
+await sendTransaction(connection, ammCreate, wallet);
+
+// amm_info: lee el pool por su par de activos.
+final info = await ammInfo(
+  connection,
+  asset: const XrplAsset.xrp(),
+  asset2: XrplAsset.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+  ),
+);
+print(info.account); // la cuenta propia del AMM
+print(info.tradingFee); // 500
 ```
 
 ## Redes

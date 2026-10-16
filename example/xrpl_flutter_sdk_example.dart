@@ -42,6 +42,7 @@ import 'phase4/signing_example.dart';
 import 'phase4/submission_example.dart';
 import 'phase5/offer_example.dart';
 import 'phase5/path_finding_example.dart';
+import 'phase5/amm_example.dart';
 
 Future<void> main() async {
   // Phase 1 - Cryptographic Fundamentals
@@ -115,4 +116,10 @@ Future<void> main() async {
 
   print('\n--- 0.4.2-dev: path_find (streaming) ---');
   await pathFindExample();
+
+  print('\n--- 0.4.3-dev: AMMCreate ---');
+  await createAmmExample();
+
+  print('\n--- 0.4.3-dev: amm_info ---');
+  await ammInfoExample();
 }

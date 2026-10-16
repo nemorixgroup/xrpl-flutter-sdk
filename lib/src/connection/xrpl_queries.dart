@@ -356,3 +356,49 @@ Future<Map<String, dynamic>> ripplePathFind(
   }
   return result;
 }
+
+/// Requests the server's current state with `server_state`, and
+/// returns its `state` object.
+///
+/// Like `server_info`, but reports XRP amounts as integer drops
+/// instead of decimal XRP, which makes it the right source for values
+/// that go straight into a transaction's `Fee` field. In particular,
+/// `validated_ledger.reserve_inc` is the incremental owner reserve
+/// that `autofill` uses as the `Fee` of transactions whose cost is the
+/// owner reserve (`AMMCreate`).
+///
+/// Throws an [XrplConnectionException] if not connected, if the
+/// request times out, if the server returns an error, or if the
+/// response has no valid `state` object.
+///
+/// Example:
+/// ```dart
+/// final state = await serverState(connection);
+/// final validated = state['validated_ledger'] as Map<String, dynamic>;
+/// print(validated['reserve_inc']); // incremental owner reserve
+/// ```
+///
+/// See:
+/// https://xrpl.org/docs/references/http-websocket-apis/public-api-methods/server-info-methods/server_state
+Future<Map<String, dynamic>> serverState(XrplConnection connection) async {
+  final response = await connection.request('server_state');
+
+  final resultRaw = response['result'];
+  // Same defensive, intentionally-untested pattern as serverInfo,
+  // accountInfo, and fee above.
+  if (resultRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected server_state response shape: missing or invalid '
+      '"result" field.',
+    );
+  }
+
+  final stateRaw = resultRaw['state'];
+  if (stateRaw is! Map<String, dynamic>) {
+    throw const XrplConnectionException(
+      'Unexpected server_state response shape: missing or invalid '
+      '"state" field.',
+    );
+  }
+  return stateRaw;
+}
