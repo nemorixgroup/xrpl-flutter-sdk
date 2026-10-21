@@ -5,13 +5,17 @@ import 'package:xrpl_flutter_sdk/src/transactions/binary/xrpl_binary_primitives.
 
 /// Encoders for XRPL's `Amount` binary type, in both forms this SDK
 /// needs: a plain XRP amount (for `XrplPayment.amountDrops`), and an
-/// issued-currency amount (for `XrplTrustSet`'s `LimitAmount`).
+/// issued-currency amount (for `XrplTrustSet`'s `LimitAmount`). It
+/// also encodes the `Issue` type (an asset with no quantity), used by
+/// `AMMDeposit`'s `Asset` and `Asset2`.
 ///
-/// Both encoders were verified against an official worked example
-/// (an `OfferCreate` transaction's published JSON and binary), which
-/// happens to include one of each form (`TakerGets` as XRP,
+/// Both amount encoders were verified against an official worked
+/// example (an `OfferCreate` transaction's published JSON and binary),
+/// which happens to include one of each form (`TakerGets` as XRP,
 /// `TakerPays` as an issued currency) - see
-/// `docs-sdk/phase-4/signing/` for the full verification.
+/// `docs-sdk/phase-4/signing/` for the full verification. The `Issue`
+/// encoder was verified byte-for-byte against the official `xrpl-py`
+/// binary codec.
 ///
 /// See: https://xrpl.org/docs/references/protocol/binary-format#amount-fields
 class XrplAmountSerializer {
@@ -81,20 +85,101 @@ class XrplAmountSerializer {
     required String value,
   }) {
     final valueBytes = _encodeIssuedCurrencyValue(value);
-    final currencyBytes = _encodeCurrencyCode(currency);
-
-    // The issuer here is embedded at a fixed 20 bytes with no length
-    // prefix of its own (unlike a standalone AccountID field) - strip
-    // the length-prefix byte that encodeAccountId adds for that
-    // separate use case.
-    final accountIdWithPrefix = XrplBinaryPrimitives.encodeAccountId(issuer);
-    final issuerBytes = accountIdWithPrefix.sublist(1);
+    final currencyBytes = encodeCurrencyCode(currency);
+    final issuerBytes = _encodeIssuerBytes(issuer);
 
     return Uint8List.fromList([
       ...valueBytes,
       ...currencyBytes,
       ...issuerBytes,
     ]);
+  }
+
+  /// Encodes an `Issue`: an asset identified without any quantity,
+  /// as `AMMDeposit`'s `Asset` and `Asset2` fields use.
+  ///
+  /// XRP (a [currency] of `"XRP"` with no [issuer]) is exactly 20 zero
+  /// bytes. A token is 40 bytes: the 20-byte [currency] code followed
+  /// by the 20-byte [issuer] Account ID, with no length prefix. This
+  /// was confirmed byte-for-byte against the official `xrpl-py`
+  /// binary codec.
+  ///
+  /// Throws an [XrplCryptoException] if XRP is given an [issuer], if a
+  /// token has no [issuer], or if [currency] or [issuer] is invalid.
+  static Uint8List encodeIssue({required String currency, String? issuer}) {
+    if (currency == 'XRP') {
+      if (issuer != null) {
+        throw XrplCryptoException(
+          'XRP has no issuer, but an issuer was given ("$issuer")',
+        );
+      }
+      return Uint8List(20);
+    }
+
+    if (issuer == null) {
+      throw XrplCryptoException(
+        'an issued currency needs an issuer, but none was given for '
+        '"$currency"',
+      );
+    }
+
+    return Uint8List.fromList([
+      ...encodeCurrencyCode(currency),
+      ..._encodeIssuerBytes(issuer),
+    ]);
+  }
+
+  /// Encodes a [currency] code into its 20 bytes: either a standard
+  /// 3-letter code (for example `"USD"`), or a raw 40-character hex
+  /// code, such as the one XRPL assigns to an AMM's LP tokens.
+  ///
+  /// Throws an [XrplCryptoException] if [currency] is neither, if a
+  /// 3-letter code has non-ASCII characters, or if a 40-character code
+  /// is not valid hexadecimal.
+  static Uint8List encodeCurrencyCode(String currency) {
+    if (currency.length == 40) {
+      if (!RegExp(r'^[0-9A-Fa-f]{40}$').hasMatch(currency)) {
+        throw XrplCryptoException(
+          'a 40-character currency code must be valid hexadecimal, '
+          'got "$currency"',
+        );
+      }
+      // Already a raw 160-bit hex currency code.
+      return _hexToBytes(currency);
+    }
+
+    if (currency.length != 3) {
+      throw XrplCryptoException(
+        'currency must be a 3-letter code or a 40-character hex code, '
+        'got "$currency" (${currency.length} characters)',
+      );
+    }
+
+    final asciiBytes = currency.codeUnits;
+    for (final unit in asciiBytes) {
+      if (unit > 0x7F) {
+        throw XrplCryptoException(
+          'currency must contain only ASCII characters, got "$currency"',
+        );
+      }
+    }
+
+    // Standard format, confirmed against the official "USD" example:
+    // 12 zero bytes, then the 3 ASCII letters, then 5 more zero bytes.
+    return Uint8List.fromList([
+      ...List.filled(12, 0),
+      ...asciiBytes,
+      ...List.filled(5, 0),
+    ]);
+  }
+
+  /// The issuer here is embedded at a fixed 20 bytes with no length
+  /// prefix of its own (unlike a standalone AccountID field) - strip
+  /// the length-prefix byte that encodeAccountId adds for that
+  /// separate use case.
+  static Uint8List _encodeIssuerBytes(String issuer) {
+    final accountIdWithPrefix = XrplBinaryPrimitives.encodeAccountId(issuer);
+    return accountIdWithPrefix.sublist(1);
   }
 
   static Uint8List _encodeIssuedCurrencyValue(String value) {
@@ -163,37 +248,6 @@ class XrplAmountSerializer {
 
     final full = notXrpBit | signBit | exponentBits | mantissa;
     return _bigIntToBytes(full, 8);
-  }
-
-  static Uint8List _encodeCurrencyCode(String currency) {
-    if (currency.length == 40) {
-      // Already a raw 160-bit hex currency code.
-      return _hexToBytes(currency);
-    }
-
-    if (currency.length != 3) {
-      throw XrplCryptoException(
-        'currency must be a 3-letter code or a 40-character hex code, '
-        'got "$currency" (${currency.length} characters)',
-      );
-    }
-
-    final asciiBytes = currency.codeUnits;
-    for (final unit in asciiBytes) {
-      if (unit > 0x7F) {
-        throw XrplCryptoException(
-          'currency must contain only ASCII characters, got "$currency"',
-        );
-      }
-    }
-
-    // Standard format, confirmed against the official "USD" example:
-    // 12 zero bytes, then the 3 ASCII letters, then 5 more zero bytes.
-    return Uint8List.fromList([
-      ...List.filled(12, 0),
-      ...asciiBytes,
-      ...List.filled(5, 0),
-    ]);
   }
 
   static Uint8List _bigIntToBytes(BigInt value, int length) {
