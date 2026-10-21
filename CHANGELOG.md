@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.4-dev
+
+Phase 5 in progress: `AMMDeposit`, the transaction that adds liquidity
+to an existing pool, in the five modes that work on a pool that already
+holds assets.
+
+### Added
+
+- `XrplAmmDeposit` transaction model with one named constructor per
+  deposit mode, so an invalid mix of fields does not compile:
+  `singleAsset`, `twoAsset`, `lpToken`, `oneAssetLpToken`,
+  `limitLpToken` and `twoAssetIfEmpty`; the `tf*` flag constants are
+  public and each constructor sets exactly one of them
+- Client-side validation of what can be checked without ledger state:
+  the two pool assets must differ, deposit amounts must be positive and
+  belong to the pool, the two amounts of a pair must be different
+  assets, `lpTokenOut` must be an issued amount, and `ePrice` must be
+  positive
+- Binary codec support for `AMMDeposit` (type 36) and the fields
+  `Asset`, `Asset2` (a new `Issue` type, code 24), `LPTokenOut` and
+  `EPrice`; `XrplAmountSerializer.encodeIssue` is new, and
+  `encodeCurrencyCode` is now public and also validates 40-character
+  hex codes (the form LP token currencies use)
+- Shared Testnet test support in `test/support/xrpl_amm_test_pool.dart`
+  (funding an issuer and a holder, Default Ripple, trust line, token
+  transfer and pool creation), reused by every AMM integration test
+- Example: `depositAmmExample` in `example/phase5/amm_example.dart`
+- 42 new tests (405 -> 447): 15 binary vectors for `AMMDeposit`, 22
+  model tests, and 5 integration tests against the real public Testnet
+  server, one per mode, each reading the pool with `ammInfo` before and
+  after the deposit
+
+### Changed
+
+- `xrpl_amm_create_integration_test.dart` now uses the shared test
+  support instead of its own private setup
+
+### Design Decisions
+
+- `AMMDeposit` pays the normal transaction cost, not the owner reserve:
+  confirmed on the real Testnet (10 drops for a deposit, against
+  200000 for `AMMCreate`), so it does not implement
+  `XrplOwnerReserveCostTransaction`
+- One named constructor per mode instead of one constructor with
+  optional fields: the official documentation allows exactly six field
+  combinations, and a type-level guarantee removes the chance of
+  sending an invalid one
+- The amounts of `twoAsset` are an upper bound, as the official
+  documentation states: asking for 0.5 XRP and 5 TST against a pool
+  holding 6 XRP and 50 TST deposited 0.5 XRP and about 4.17 TST, the
+  amounts that keep the pool's ratio
+- `TradingFee` is not part of this sub-version: the documentation does
+  not say which modes it applies to, and it is better left out than
+  guessed
+- `Issue` fields (`Asset`, `Asset2`) are serialized without a length
+  prefix: XRP is 20 zero bytes, a token is its 20-byte currency code
+  followed by its 20-byte issuer. Field IDs were checked with a live
+  `server_definitions` response and the expected binary vectors come
+  from xrpl-py, not from this SDK
+- Ledger-state rules (`tecAMM_EMPTY`, `tecAMM_NOT_EMPTY`,
+  `tecUNFUNDED_AMM`, `tecFROZEN`, `terNO_AMM`, ...) are left to the
+  server
+- `tfTwoAssetIfEmpty` is covered by the codec and model tests but not
+  by a Testnet test: it only works on an empty pool, which needs
+  `AMMWithdraw` (`0.4.5-dev`) to produce
+
+### Status
+
+Phase 5 in progress: `AMMDeposit` complete and verified against the
+real public Testnet server in five of its six modes.   
+Not ready for production use.   
+Next: AMMWithdraw (`0.4.5-dev`).  
+
 ## 0.4.3-dev
 
 Phase 5 in progress: the first AMM transaction, `AMMCreate`, and the
