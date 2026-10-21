@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.3-dev
+  xrpl_flutter_sdk: ^0.4.4-dev
 ```
 
 ```bash
@@ -254,6 +254,41 @@ final info = await ammInfo(
 );
 print(info.account); // la cuenta propia del AMM
 print(info.tradingFee); // 500
+```
+
+```dart
+// AMMDeposit: agrega liquidez a un pool existente. Cada modo de
+// deposito tiene su propio constructor, asi que una mezcla invalida de
+// campos no compila. Single asset: solo entra XRP; el pool descuenta
+// una comision de los LP tokens emitidos.
+final deposit = XrplAmmDeposit.singleAsset(
+  account: wallet.classicAddress,
+  asset: const XrplAsset.xrp(),
+  asset2: XrplAsset.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+  ),
+  amount: const XrplCurrencyAmount.xrp('1000000'), // 1 XRP
+);
+await sendTransaction(connection, deposit, wallet); // fee normal, no la reserva
+
+// Two assets: entran ambos a la proporcion actual del pool. Los montos
+// son un tope; el pool toma lo que cabe en su proporcion.
+final both = XrplAmmDeposit.twoAsset(
+  account: wallet.classicAddress,
+  asset: const XrplAsset.xrp(),
+  asset2: XrplAsset.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+  ),
+  amount: const XrplCurrencyAmount.xrp('500000'),
+  amount2: XrplCurrencyAmount.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+    value: '5',
+  ),
+);
+await sendTransaction(connection, both, wallet);
 ```
 
 ## Redes

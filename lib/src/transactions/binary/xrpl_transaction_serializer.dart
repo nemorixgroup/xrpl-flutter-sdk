@@ -135,6 +135,20 @@ class XrplTransactionSerializer {
       (v) => _encodeEitherAmount(v, 'Amount2'),
     );
     addIfPresent(
+      'LPTokenOut',
+      XrplFieldDefinitions.lpTokenOut,
+      // LP tokens are always an issued currency (the AMM account is
+      // their issuer), never XRP, so only the Map shape is valid.
+      (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'LPTokenOut')),
+    );
+    addIfPresent(
+      'EPrice',
+      XrplFieldDefinitions.ePrice,
+      // The maximum price per LP token is expressed in the deposit
+      // asset, which can be either XRP or an issued currency.
+      (v) => _encodeEitherAmount(v, 'EPrice'),
+    );
+    addIfPresent(
       'Account',
       XrplFieldDefinitions.account,
       (v) => XrplBinaryPrimitives.encodeAccountId(_asString(v, 'Account')),
@@ -163,6 +177,16 @@ class XrplTransactionSerializer {
       XrplFieldDefinitions.takerPays,
       (v) => _encodeEitherAmount(v, 'TakerPays'),
     );
+    addIfPresent(
+      'Asset',
+      XrplFieldDefinitions.asset,
+      (v) => _encodeIssueFromMap(v, 'Asset'),
+    );
+    addIfPresent(
+      'Asset2',
+      XrplFieldDefinitions.asset2,
+      (v) => _encodeIssueFromMap(v, 'Asset2'),
+    );
 
     final unknownKeys = json.keys.toSet().difference({
       'TransactionType',
@@ -179,11 +203,15 @@ class XrplTransactionSerializer {
       'Fee',
       'Amount',
       'Amount2',
+      'LPTokenOut',
+      'EPrice',
       'Account',
       'Destination',
       'LimitAmount',
       'TakerGets',
       'TakerPays',
+      'Asset',
+      'Asset2',
     });
     if (unknownKeys.isNotEmpty) {
       throw XrplCryptoException(
@@ -223,6 +251,8 @@ class XrplTransactionSerializer {
         return XrplTransactionTypeCode.ammCreate;
       case 'AccountSet':
         return XrplTransactionTypeCode.accountSet;
+      case 'AMMDeposit':
+        return XrplTransactionTypeCode.ammDeposit;
       default:
         throw XrplCryptoException('Unsupported TransactionType "$name"');
     }
@@ -236,10 +266,22 @@ class XrplTransactionSerializer {
     );
   }
 
+  /// Encodes an `Issue` field (`Asset`, `Asset2`) from the
+  /// `{currency}` or `{currency, issuer}` Map `XrplAsset.toJson()`
+  /// produces. A missing `issuer` key means XRP.
+  static Uint8List _encodeIssueFromMap(Object? value, String fieldName) {
+    final map = _asMap(value, fieldName);
+    final issuer = map['issuer'];
+    return XrplAmountSerializer.encodeIssue(
+      currency: _asString(map['currency'], '$fieldName.currency'),
+      issuer: issuer == null ? null : _asString(issuer, '$fieldName.issuer'),
+    );
+  }
+
   /// Encodes a value that may be either a plain drops String (XRP) or
   /// a `{currency, issuer, value}` Map (issued currency) - the two
   /// shapes `XrplCurrencyAmount.toJson()` can produce for
-  /// `Amount`, `Amount2`, `TakerGets`, and `TakerPays`.
+  /// `Amount`, `Amount2`, `EPrice`, `TakerGets`, and `TakerPays`.
   static Uint8List _encodeEitherAmount(Object? value, String fieldName) {
     if (value is String) {
       return XrplAmountSerializer.encodeXrpAmount(value);

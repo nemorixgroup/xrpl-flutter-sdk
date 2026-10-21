@@ -36,6 +36,7 @@ const _neededTransactionTypes = [
   'OfferCancel',
   'AMMCreate',
   'AccountSet',
+  'AMMDeposit',
 ];
 
 // Every field this SDK currently needs across every transaction type
@@ -61,6 +62,10 @@ const _neededFields = [
   'Amount2',
   'TradingFee',
   'SetFlag',
+  'Asset',
+  'Asset2',
+  'LPTokenOut',
+  'EPrice',
 ];
 
 // Independently confirmed earlier - either via official documentation
@@ -68,8 +73,9 @@ const _neededFields = [
 // (Phase 4's Payment/TrustSet fields), by decoding the official
 // OfferCreate worked example byte-by-byte (Phase 5's Offer fields),
 // or by reading the official xrpl-py definitions programmatically
-// (Phase 5's AMMCreate fields) - used here purely as a sanity check
-// against the live server response, not as the source of truth.
+// (Phase 5's AMMCreate and AMMDeposit fields) - used here purely as a
+// sanity check against the live server response, not as the source of
+// truth.
 const _knownGoodTransactionTypeCodes = {
   'Payment': 0,
   'TrustSet': 20,
@@ -77,6 +83,7 @@ const _knownGoodTransactionTypeCodes = {
   'OfferCancel': 8,
   'AMMCreate': 35,
   'AccountSet': 3,
+  'AMMDeposit': 36,
 };
 
 const _knownGoodFieldIdBytes = {
@@ -94,6 +101,10 @@ const _knownGoodFieldIdBytes = {
   'Amount2': [0x6B],
   'TradingFee': [0x15],
   'SetFlag': [0x20, 0x21],
+  'Asset': [0x03, 0x18],
+  'Asset2': [0x04, 0x18],
+  'LPTokenOut': [0x60, 0x19],
+  'EPrice': [0x60, 0x1B],
 };
 
 void main() async {

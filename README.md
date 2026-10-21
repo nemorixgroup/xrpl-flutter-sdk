@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.3-dev
+  xrpl_flutter_sdk: ^0.4.4-dev
 ```
 
 ```bash
@@ -254,6 +254,41 @@ final info = await ammInfo(
 );
 print(info.account); // the AMM's own account
 print(info.tradingFee); // 500
+```
+
+```dart
+// AMMDeposit: add liquidity to an existing pool. Each deposit mode has
+// its own constructor, so an invalid mix of fields does not compile.
+// Single asset: only XRP goes in; the pool keeps a fee out of the LP
+// tokens minted.
+final deposit = XrplAmmDeposit.singleAsset(
+  account: wallet.classicAddress,
+  asset: const XrplAsset.xrp(),
+  asset2: XrplAsset.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+  ),
+  amount: const XrplCurrencyAmount.xrp('1000000'), // 1 XRP
+);
+await sendTransaction(connection, deposit, wallet); // normal fee, not the reserve
+
+// Two assets: both go in at the pool's current ratio. The amounts are
+// an upper bound; the pool takes what fits its proportion.
+final both = XrplAmmDeposit.twoAsset(
+  account: wallet.classicAddress,
+  asset: const XrplAsset.xrp(),
+  asset2: XrplAsset.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+  ),
+  amount: const XrplCurrencyAmount.xrp('500000'),
+  amount2: XrplCurrencyAmount.issued(
+    currency: 'TST',
+    issuer: 'rSomeIssuerAddress...',
+    value: '5',
+  ),
+);
+await sendTransaction(connection, both, wallet);
 ```
 
 ## Networks

@@ -456,4 +456,295 @@ void main() {
       );
     });
   });
+
+  group('XrplTransactionSerializer.serialize - AMMDeposit', () {
+    // Every expected hex below was produced by the official xrpl-py
+    // library's binary codec, not by this SDK, so these tests compare
+    // against an independent implementation. The pool is XRP / TST.
+    const issuer = 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd';
+
+    // The LP token a deposit buys: a 40-character hex currency code
+    // issued by the AMM account, as observed on the real Testnet.
+    const lpTokenOut = {
+      'currency': '039C99CD9AB0B70B32ECDA51EAAE471625608EA2',
+      'issuer': 'rNJSNwbggDhEBwhRXNeyeY7G2Xy3gxLjYH',
+      'value': '100',
+    };
+
+    const tstAmount = {
+      'currency': 'TST',
+      'issuer': issuer,
+      'value': '10',
+    };
+
+    Map<String, dynamic> deposit(Map<String, dynamic> fields) {
+      return {
+        'TransactionType': 'AMMDeposit',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Asset': {'currency': 'XRP'},
+        'Asset2': {'currency': 'TST', 'issuer': issuer},
+        'Fee': '10',
+        'Sequence': 9,
+        'LastLedgerSequence': 102,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+        ...fields,
+      };
+    }
+
+    test('tfLPToken with LPTokenOut matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({'Flags': 0x00010000, 'LPTokenOut': lpTokenOut}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422000100002400000009201b000000666840000000000000'
+          '0a6019d5038d7ea4c68000039c99cd9ab0b70b32ecda51eaae4716'
+          '25608ea291e5c3d526d6af03e629efbc0a095613116ea1007321ed'
+          '5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f7829'
+          '11e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa8'
+          '031800000000000000000000000000000000000000000418000000'
+          '0000000000000000005453540000000000f2f97c4301c80d60f866'
+          '53a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('tfTwoAsset with Amount and Amount2 matches xrpl-py byte-for-byte',
+        () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({
+          'Flags': 0x00100000,
+          'Amount': '1000000',
+          'Amount2': tstAmount,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422001000002400000009201b000000666140000000000f42'
+          '4068400000000000000a6bd4c38d7ea4c680000000000000000000'
+          '000000005453540000000000f2f97c4301c80d60f86653a319aa7f'
+          '302c70b83b7321ed5f5ac8b98974a3ca843326d9b88cebd0560177'
+          'b973ee0b149f782911e5e8a9c18114f667b0ca50cc7709a220b056'
+          '1b85e53a48461fa803180000000000000000000000000000000000'
+          '00000004180000000000000000000000005453540000000000f2f9'
+          '7c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('tfSingleAsset with only Amount matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({'Flags': 0x00080000, 'Amount': '1000000'}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422000800002400000009201b000000666140000000000f42'
+          '4068400000000000000a7321ed5f5ac8b98974a3ca843326d9b88c'
+          'ebd0560177b973ee0b149f782911e5e8a9c18114f667b0ca50cc77'
+          '09a220b0561b85e53a48461fa80318000000000000000000000000'
+          '000000000000000004180000000000000000000000005453540000'
+          '000000f2f97c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'tfOneAssetLPToken with Amount and LPTokenOut matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({
+          'Flags': 0x00200000,
+          'Amount': '1000000',
+          'LPTokenOut': lpTokenOut,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422002000002400000009201b000000666140000000000f42'
+          '4068400000000000000a6019d5038d7ea4c68000039c99cd9ab0b7'
+          '0b32ecda51eaae471625608ea291e5c3d526d6af03e629efbc0a09'
+          '5613116ea1007321ed5f5ac8b98974a3ca843326d9b88cebd05601'
+          '77b973ee0b149f782911e5e8a9c18114f667b0ca50cc7709a220b0'
+          '561b85e53a48461fa8031800000000000000000000000000000000'
+          '0000000004180000000000000000000000005453540000000000f2'
+          'f97c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('tfLimitLPToken with Amount and EPrice matches xrpl-py byte-for-byte',
+        () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({
+          'Flags': 0x00400000,
+          'Amount': '1000000',
+          'EPrice': '100000',
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422004000002400000009201b000000666140000000000f42'
+          '4068400000000000000a601b40000000000186a07321ed5f5ac8b9'
+          '8974a3ca843326d9b88cebd0560177b973ee0b149f782911e5e8a9'
+          'c18114f667b0ca50cc7709a220b0561b85e53a48461fa803180000'
+          '000000000000000000000000000000000000041800000000000000'
+          '00000000005453540000000000f2f97c4301c80d60f86653a319aa'
+          '7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'tfTwoAssetIfEmpty with Amount and Amount2 matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({
+          'Flags': 0x00800000,
+          'Amount': '1000000',
+          'Amount2': tstAmount,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422008000002400000009201b000000666140000000000f42'
+          '4068400000000000000a6bd4c38d7ea4c680000000000000000000'
+          '000000005453540000000000f2f97c4301c80d60f86653a319aa7f'
+          '302c70b83b7321ed5f5ac8b98974a3ca843326d9b88cebd0560177'
+          'b973ee0b149f782911e5e8a9c18114f667b0ca50cc7709a220b056'
+          '1b85e53a48461fa803180000000000000000000000000000000000'
+          '00000004180000000000000000000000005453540000000000f2f9'
+          '7c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'a pool of two issued assets (neither is XRP) matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({
+          'Flags': 0x00080000,
+          'Asset': {
+            'currency': 'USD',
+            'issuer': 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          },
+          'Amount': tstAmount,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002422000800002400000009201b0000006661d4c38d7ea4c680'
+          '000000000000000000000000005453540000000000f2f97c4301c8'
+          '0d60f86653a319aa7f302c70b83b68400000000000000a7321ed5f'
+          '5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911'
+          'e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa803'
+          '1800000000000000000000000055534400000000000a20b3c85f48'
+          '2532a9578dbb3950b85ca06594d104180000000000000000000000'
+          '005453540000000000f2f97c4301c80d60f86653a319aa7f302c70'
+          'b83b',
+        ),
+      );
+    });
+
+    test('Asset and Asset2 are serialized after Account (type 24 sorts last)',
+        () {
+      final serialized = XrplTransactionSerializer.serialize(
+        deposit({'Flags': 0x00080000, 'Amount': '1000000'}),
+      );
+
+      // Account's Field ID is 0x81; Asset's is [0x03, 0x18].
+      final accountPosition = serialized.indexOf(0x81);
+      final assetPosition = serialized.indexOf(0x18);
+      expect(accountPosition, lessThan(assetPosition));
+    });
+
+    test('throws when Asset is not a Map', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'Asset': 'XRP', // should be a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when an XRP Asset is given an issuer', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'Asset': {'currency': 'XRP', 'issuer': issuer},
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when a token Asset has no issuer', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'Asset2': {'currency': 'TST'},
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when an Asset issuer is not a String', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'Asset2': {'currency': 'TST', 'issuer': 12345},
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when LPTokenOut is a String (LP tokens are never XRP)', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'LPTokenOut': '100', // should be a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when a 40-character currency code is not valid hex', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'LPTokenOut': {
+            'currency': 'Z' * 40, // not hexadecimal
+            'issuer': 'rNJSNwbggDhEBwhRXNeyeY7G2Xy3gxLjYH',
+            'value': '100',
+          },
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when EPrice is neither a String nor a Map', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMDeposit',
+          'EPrice': 12345, // should be a String or a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
 }

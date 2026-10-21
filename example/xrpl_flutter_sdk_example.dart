@@ -122,4 +122,7 @@ Future<void> main() async {
 
   print('\n--- 0.4.3-dev: amm_info ---');
   await ammInfoExample();
+
+  print('\n--- 0.4.4-dev: AMMDeposit ---');
+  await depositAmmExample();
 }
