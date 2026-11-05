@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.4-dev
+  xrpl_flutter_sdk: ^0.4.5-dev
 ```
 
 ```bash
@@ -290,6 +290,42 @@ final both = XrplAmmDeposit.twoAsset(
 );
 await sendTransaction(connection, both, wallet);
 ```
+
+```dart
+final lp = info.lpToken; // obtenido con ammInfo
+
+// Devuelve exactamente 10 tokens LP y recibe ambos activos.
+await sendTransaction(
+  connection,
+  XrplAmmWithdraw.lpToken(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    lpTokenIn: XrplCurrencyAmount.issued(
+      currency: lp.currency.toString(),
+      issuer: lp.issuer.toString(),
+      value: '10',
+    ),
+  ),
+  holder,
+);
+
+// Retira solo XRP (el pool cobra una comisión en retiros de un activo).
+await sendTransaction(
+  connection,
+  XrplAmmWithdraw.singleAsset(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    amount: const XrplCurrencyAmount.xrp('500000'),
+  ),
+  holder,
+);
+```
+
+Retirar todo con `XrplAmmWithdraw.withdrawAll` elimina el pool cuando
+eres su último proveedor de liquidez. Consulta
+`example/phase5/amm_example.dart` para el flujo completo.
 
 ## Redes
 

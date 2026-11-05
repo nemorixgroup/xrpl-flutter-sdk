@@ -55,9 +55,9 @@ class XrplFieldDefinition {
 
 /// The binary serialization definitions for every field this SDK
 /// currently needs, to build `XrplPayment`, `XrplTrustSet`,
-/// `XrplOfferCreate`, `XrplOfferCancel`, `XrplAmmCreate`, and
-/// `XrplAmmDeposit` transactions in their canonical binary format for
-/// signing.
+/// `XrplOfferCreate`, `XrplOfferCancel`, `XrplAmmCreate`,
+/// `XrplAmmDeposit`, and `XrplAmmWithdraw` transactions in their
+/// canonical binary format for signing.
 ///
 /// These values are permanent, not configuration: a Field ID is part
 /// of how a transaction's signing hash is calculated, so changing one
@@ -236,11 +236,12 @@ class XrplFieldDefinitions {
   );
 
   /// Binary definition for the `Asset` field - one of the two assets
-  /// identifying the pool an `AMMDeposit` targets. Its type is `Issue`
-  /// (type code 24), which has no length prefix: 20 zero bytes for XRP,
-  /// or a 20-byte currency code followed by a 20-byte issuer for a
-  /// token. Confirmed from a live `server_definitions` response and
-  /// cross-checked against the official `xrpl-py` definitions.
+  /// identifying the pool an `AMMDeposit` or `AMMWithdraw` targets.
+  /// Its type is `Issue` (type code 24), which has no length prefix:
+  /// 20 zero bytes for XRP, or a 20-byte currency code followed by a
+  /// 20-byte issuer for a token. Confirmed from a live
+  /// `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
   static const asset = XrplFieldDefinition(
     typeCode: 24,
     fieldCode: 3,
@@ -249,9 +250,10 @@ class XrplFieldDefinitions {
   );
 
   /// Binary definition for the `Asset2` field - the other asset
-  /// identifying the pool an `AMMDeposit` targets. Same `Issue` type
-  /// as [asset]. Confirmed from a live `server_definitions` response
-  /// and cross-checked against the official `xrpl-py` definitions.
+  /// identifying the pool an `AMMDeposit` or `AMMWithdraw` targets.
+  /// Same `Issue` type as [asset]. Confirmed from a live
+  /// `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
   static const asset2 = XrplFieldDefinition(
     typeCode: 24,
     fieldCode: 4,
@@ -271,13 +273,25 @@ class XrplFieldDefinitions {
   );
 
   /// Binary definition for the `EPrice` field - the maximum effective
-  /// price an `AMMDeposit` pays per LP token. An `Amount`-typed field.
-  /// Confirmed from a live `server_definitions` response and
-  /// cross-checked against the official `xrpl-py` definitions.
+  /// price an `AMMDeposit` pays per LP token, or the minimum an
+  /// `AMMWithdraw` accepts. An `Amount`-typed field. Confirmed from a
+  /// live `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
   static const ePrice = XrplFieldDefinition(
     typeCode: 6,
     fieldCode: 27,
     fieldIdBytes: [0x60, 0x1B],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `LPTokenIn` field - how many of the
+  /// AMM's LP tokens an `AMMWithdraw` redeems. An `Amount`-typed
+  /// field. Confirmed from a live `server_definitions` response and
+  /// cross-checked against the official `xrpl-py` definitions.
+  static const lpTokenIn = XrplFieldDefinition(
+    typeCode: 6,
+    fieldCode: 26,
+    fieldIdBytes: [0x60, 0x1A],
     isVLEncoded: false,
   );
 }
@@ -314,4 +328,8 @@ class XrplTransactionTypeCode {
   /// The numeric `TransactionType` value for an `AMMDeposit`
   /// transaction.
   static const ammDeposit = 36;
+
+  /// The numeric `TransactionType` value for an `AMMWithdraw`
+  /// transaction.
+  static const ammWithdraw = 37;
 }

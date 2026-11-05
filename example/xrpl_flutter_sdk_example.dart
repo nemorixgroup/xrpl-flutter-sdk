@@ -125,4 +125,7 @@ Future<void> main() async {
 
   print('\n--- 0.4.4-dev: AMMDeposit ---');
   await depositAmmExample();
+
+  print('\n--- 0.4.5-dev: AMMWithdraw ---');
+  await withdrawAmmExample();
 }

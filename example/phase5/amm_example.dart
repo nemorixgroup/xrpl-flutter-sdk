@@ -1,12 +1,14 @@
 // Phase 5
 //  - 0.4.3-dev: AMMCreate, amm_info.
 //  - 0.4.4-dev: AMMDeposit.
+//  - 0.4.5-dev: AMMWithdraw.
 //
 // Demonstrates XRPL's native Automated Market Maker: creating a
 // liquidity pool for an asset pair with XrplAmmCreate, reading it back
-// with ammInfo, and adding liquidity to it with XrplAmmDeposit. All of
-// them use the same build -> autofill -> sign -> submitAndWait pipeline
-// used throughout Phases 4 and 5.
+// with ammInfo, adding liquidity to it with XrplAmmDeposit, and taking
+// it out with XrplAmmWithdraw. All of them use the same build ->
+// autofill -> sign -> submitAndWait pipeline used throughout Phases 4
+// and 5.
 //
 // Creating a pool needs more setup than any earlier transaction:
 //   1. The token issuer must enable Default Ripple, otherwise the
@@ -18,13 +20,19 @@
 //
 // Fee note: AMMCreate must destroy at least the owner reserve. When
 // no fee is set, autofill reads it from the network (server_state,
-// reserve_inc), so there is nothing to configure here. AMMDeposit, in
-// contrast, pays the normal transaction cost.
+// reserve_inc), so there is nothing to configure here. AMMDeposit and
+// AMMWithdraw, in contrast, pay the normal transaction cost.
 //
 // Deposit note: XrplAmmDeposit has one named constructor per deposit
 // mode (singleAsset, twoAsset, lpToken, oneAssetLpToken, limitLpToken,
 // twoAssetIfEmpty), so an invalid mix of fields does not compile. The
 // last mode only works on an EMPTY pool and is not shown here.
+//
+// Withdraw note: XrplAmmWithdraw works the same way, with one named
+// constructor per mode (lpToken, withdrawAll, oneAssetWithdrawAll,
+// singleAsset, twoAsset, oneAssetLpToken, limitLpToken). This file
+// shows lpToken, singleAsset and withdrawAll. Withdrawing everything
+// from a pool deletes it.
 //
 // Full technical decisions:
 // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-5
@@ -351,6 +359,108 @@ Future<void> depositAmmExample() async {
   final exactMeta = exact['meta'] as Map<String, dynamic>;
   print('Exact LP tokens: ${exactMeta['TransactionResult']}');
   await _printPool(connection, accounts.issuer, 'After exact LP tokens');
+
+  await connection.disconnect();
+}
+
+Future<void> withdrawAmmExample() async {
+  final connection = XrplConnection(XrplEndpoint.testnet);
+  await connection.connect();
+
+  final accounts = await _prepareTokenHolder(connection);
+  final holder = accounts.holder;
+
+  // Start from a real pool: 5 XRP and 50 TST. The holder is its only
+  // liquidity provider, so it owns every LP token.
+  await sendTransaction(
+    connection,
+    XrplAmmCreate(
+      account: holder.classicAddress,
+      amount: const XrplCurrencyAmount.xrp('5000000'),
+      amount2: XrplCurrencyAmount.issued(
+        currency: 'TST',
+        issuer: accounts.issuer.classicAddress,
+        value: '50',
+      ),
+      tradingFee: 500,
+    ),
+    holder,
+  );
+
+  // The pool is identified by its two assets, in any order.
+  const xrp = XrplAsset.xrp();
+  final tst = XrplAsset.issued(
+    currency: 'TST',
+    issuer: accounts.issuer.classicAddress,
+  );
+
+  final before = await _printPool(connection, accounts.issuer, 'Before');
+
+  // ---- Mode 1: exact LP tokens ----
+  // Give back exactly 10 LP tokens and receive both assets in
+  // proportion. Double-asset withdrawals pay no pool fee. The LP token
+  // currency and issuer come from ammInfo, never from hand-built codes.
+  final lp = before.lpToken;
+  final redeem = await sendTransaction(
+    connection,
+    XrplAmmWithdraw.lpToken(
+      account: holder.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      lpTokenIn: XrplCurrencyAmount.issued(
+        currency: lp.currency.toString(),
+        issuer: lp.issuer.toString(),
+        value: '10',
+      ),
+    ),
+    holder,
+  );
+  final redeemMeta = redeem['meta'] as Map<String, dynamic>;
+  print('Exact LP tokens: ${redeemMeta['TransactionResult']}');
+  // Like AMMDeposit, AMMWithdraw pays the normal transaction cost.
+  print('Fee paid (drops): ${redeem['Fee']}');
+  await _printPool(connection, accounts.issuer, 'After exact LP tokens');
+
+  // ---- Mode 2: single asset ----
+  // Take out only XRP. The pool charges a fee, because a one-sided
+  // withdrawal changes the pool's balance. The server rounds in the
+  // pool's favor, so it may pay a drop or two less than requested.
+  final single = await sendTransaction(
+    connection,
+    XrplAmmWithdraw.singleAsset(
+      account: holder.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      amount: const XrplCurrencyAmount.xrp('500000'),
+    ),
+    holder,
+  );
+  final singleMeta = single['meta'] as Map<String, dynamic>;
+  print('Single asset: ${singleMeta['TransactionResult']}');
+  await _printPool(connection, accounts.issuer, 'After single asset');
+
+  // ---- Mode 3: withdraw everything ----
+  // Redeem every LP token the holder owns, for both assets. The holder
+  // is the only provider, so the pool is emptied and the network
+  // deletes it.
+  final all = await sendTransaction(
+    connection,
+    XrplAmmWithdraw.withdrawAll(
+      account: holder.classicAddress,
+      asset: xrp,
+      asset2: tst,
+    ),
+    holder,
+  );
+  final allMeta = all['meta'] as Map<String, dynamic>;
+  print('Withdraw all: ${allMeta['TransactionResult']}');
+
+  try {
+    await ammInfo(connection, asset: xrp, asset2: tst);
+    print('The pool still exists.');
+  } on XrplConnectionException {
+    print('The pool no longer exists: it was deleted with its last LP.');
+  }
 
   await connection.disconnect();
 }

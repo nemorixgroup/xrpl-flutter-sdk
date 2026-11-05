@@ -747,4 +747,240 @@ void main() {
       );
     });
   });
+
+  group('XrplTransactionSerializer.serialize - AMMWithdraw', () {
+    // Every expected hex below was produced by the official xrpl-py
+    // library's binary codec, not by this SDK, so these tests compare
+    // against an independent implementation. The pool is XRP / TST.
+    const issuer = 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd';
+
+    // The LP token a withdrawal redeems: a 40-character hex currency
+    // code issued by the AMM account, as observed on the real Testnet.
+    const lpTokenIn = {
+      'currency': '039C99CD9AB0B70B32ECDA51EAAE471625608EA2',
+      'issuer': 'rNJSNwbggDhEBwhRXNeyeY7G2Xy3gxLjYH',
+      'value': '100',
+    };
+
+    const tstAmount = {
+      'currency': 'TST',
+      'issuer': issuer,
+      'value': '10',
+    };
+
+    Map<String, dynamic> withdraw(Map<String, dynamic> fields) {
+      return {
+        'TransactionType': 'AMMWithdraw',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Asset': {'currency': 'XRP'},
+        'Asset2': {'currency': 'TST', 'issuer': issuer},
+        'Fee': '10',
+        'Sequence': 9,
+        'LastLedgerSequence': 102,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+        ...fields,
+      };
+    }
+
+    test('tfLPToken with LPTokenIn matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({'Flags': 0x00010000, 'LPTokenIn': lpTokenIn}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522000100002400000009201b0000006668400000000000000'
+          'a601ad5038d7ea4c68000039c99cd9ab0b70b32ecda51eaae471625'
+          '608ea291e5c3d526d6af03e629efbc0a095613116ea1007321ed5f5'
+          'ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911e5'
+          'e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa803180'
+          '0000000000000000000000000000000000000000418000000000000'
+          '0000000000005453540000000000f2f97c4301c80d60f86653a319a'
+          'a7f302c70b83b',
+        ),
+      );
+    });
+
+    test('tfWithdrawAll with no amounts matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({'Flags': 0x00020000}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522000200002400000009201b0000006668400000000000000'
+          'a7321ed5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b14'
+          '9f782911e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a484'
+          '61fa803180000000000000000000000000000000000000000041800'
+          '00000000000000000000005453540000000000f2f97c4301c80d60f'
+          '86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'tfOneAssetWithdrawAll with an issued Amount matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({'Flags': 0x00040000, 'Amount': tstAmount}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522000400002400000009201b0000006661d4c38d7ea4c6800'
+          '00000000000000000000000005453540000000000f2f97c4301c80d'
+          '60f86653a319aa7f302c70b83b68400000000000000a7321ed5f5ac'
+          '8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911e5e8'
+          'a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa80318000'
+          '0000000000000000000000000000000000000041800000000000000'
+          '00000000005453540000000000f2f97c4301c80d60f86653a319aa7'
+          'f302c70b83b',
+        ),
+      );
+    });
+
+    test('tfSingleAsset with only Amount matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({'Flags': 0x00080000, 'Amount': '1000000'}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522000800002400000009201b000000666140000000000f424'
+          '068400000000000000a7321ed5f5ac8b98974a3ca843326d9b88ceb'
+          'd0560177b973ee0b149f782911e5e8a9c18114f667b0ca50cc7709a'
+          '220b0561b85e53a48461fa803180000000000000000000000000000'
+          '0000000000000418000000000000000000000000545354000000000'
+          '0f2f97c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'tfTwoAsset with Amount and Amount2 matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({
+          'Flags': 0x00100000,
+          'Amount': '1000000',
+          'Amount2': tstAmount,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522001000002400000009201b000000666140000000000f424'
+          '068400000000000000a6bd4c38d7ea4c68000000000000000000000'
+          '0000005453540000000000f2f97c4301c80d60f86653a319aa7f302'
+          'c70b83b7321ed5f5ac8b98974a3ca843326d9b88cebd0560177b973'
+          'ee0b149f782911e5e8a9c18114f667b0ca50cc7709a220b0561b85e'
+          '53a48461fa803180000000000000000000000000000000000000000'
+          '04180000000000000000000000005453540000000000f2f97c4301c'
+          '80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'tfOneAssetLPToken with Amount and LPTokenIn matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({
+          'Flags': 0x00200000,
+          'Amount': '1000000',
+          'LPTokenIn': lpTokenIn,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522002000002400000009201b000000666140000000000f424'
+          '068400000000000000a601ad5038d7ea4c68000039c99cd9ab0b70b'
+          '32ecda51eaae471625608ea291e5c3d526d6af03e629efbc0a09561'
+          '3116ea1007321ed5f5ac8b98974a3ca843326d9b88cebd0560177b9'
+          '73ee0b149f782911e5e8a9c18114f667b0ca50cc7709a220b0561b8'
+          '5e53a48461fa8031800000000000000000000000000000000000000'
+          '0004180000000000000000000000005453540000000000f2f97c430'
+          '1c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'tfLimitLPToken with Amount and EPrice matches xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        withdraw({
+          'Flags': 0x00400000,
+          'Amount': '1000000',
+          'EPrice': '100000',
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002522004000002400000009201b000000666140000000000f424'
+          '068400000000000000a601b40000000000186a07321ed5f5ac8b989'
+          '74a3ca843326d9b88cebd0560177b973ee0b149f782911e5e8a9c18'
+          '114f667b0ca50cc7709a220b0561b85e53a48461fa8031800000000'
+          '0000000000000000000000000000000004180000000000000000000'
+          '000005453540000000000f2f97c4301c80d60f86653a319aa7f302c'
+          '70b83b',
+        ),
+      );
+    });
+
+    test(
+        'LPTokenIn sorts between Amount and EPrice, matching xrpl-py '
+        'byte-for-byte', () {
+      // LPTokenOut is (6, 25), LPTokenIn (6, 26) and EPrice (6, 27), so
+      // LPTokenIn must come after Amount and before EPrice.
+      final serialized = XrplTransactionSerializer.serialize({
+        'TransactionType': 'AMMWithdraw',
+        'Amount': '1000000',
+        'LPTokenIn': lpTokenIn,
+        'EPrice': '100000',
+      });
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200256140000000000f4240601ad5038d7ea4c68000039c99cd9ab'
+          '0b70b32ecda51eaae471625608ea291e5c3d526d6af03e629efbc0a'
+          '095613116ea100601b40000000000186a0',
+        ),
+      );
+    });
+
+    test('throws when LPTokenIn is a String (LP tokens are never XRP)', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMWithdraw',
+          'LPTokenIn': '100', // should be a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when LPTokenIn has no issuer', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMWithdraw',
+          'LPTokenIn': {
+            'currency': '039C99CD9AB0B70B32ECDA51EAAE471625608EA2',
+            'value': '100',
+          },
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
 }

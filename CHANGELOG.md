@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.5-dev
+
+### Added
+- `XrplAmmWithdraw` (AMMWithdraw): remove liquidity from an AMM pool,
+  with one named constructor per withdraw mode: `lpToken`,
+  `withdrawAll`, `oneAssetWithdrawAll`, `singleAsset`, `twoAsset`,
+  `oneAssetLpToken` and `limitLpToken`. An invalid mix of fields does
+  not compile, and the amounts are validated before sending.
+  `oneAssetWithdrawAll` accepts an `Amount` of zero, as the official
+  documentation allows.
+- Binary codec support for AMMWithdraw (transaction type 37) and the
+  new `LPTokenIn` field, with field definitions regenerated from the
+  live `server_definitions` and vectors cross-checked with xrpl-py.
+- `withdrawAmmExample` in `example/phase5/amm_example.dart`.
+
+### Tests
+- 42 new tests (447 -> 489): 10 binary codec vectors, 27 model tests
+  and 5 Testnet integration tests against a real pool.
+- The integration tests cover `lpToken`, `singleAsset`, `twoAsset`,
+  `oneAssetWithdrawAll` with an `Amount` of zero, and `withdrawAll`
+  deleting the pool. `oneAssetLpToken` and `limitLpToken` are covered
+  by codec and model tests only, because the official page does not
+  define how their `Amount` and `EPrice` are interpreted.
+
+### Notes
+- AMMWithdraw pays the normal transaction cost, like AMMDeposit.
+- A single-asset withdrawal can pay a drop or two less than requested:
+  the server rounds in the pool's favor.
+
+Next: AMMVote (0.4.6-dev).
+
 ## 0.4.4-dev
 
 Phase 5 in progress: `AMMDeposit`, the transaction that adds liquidity
