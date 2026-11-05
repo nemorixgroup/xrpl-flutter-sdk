@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.4-dev
+  xrpl_flutter_sdk: ^0.4.5-dev
 ```
 
 ```bash
@@ -290,6 +290,42 @@ final both = XrplAmmDeposit.twoAsset(
 );
 await sendTransaction(connection, both, wallet);
 ```
+
+```dart
+final lp = info.lpToken; // from ammInfo
+
+// Give back exactly 10 LP tokens and receive both assets.
+await sendTransaction(
+  connection,
+  XrplAmmWithdraw.lpToken(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    lpTokenIn: XrplCurrencyAmount.issued(
+      currency: lp.currency.toString(),
+      issuer: lp.issuer.toString(),
+      value: '10',
+    ),
+  ),
+  holder,
+);
+
+// Take out only XRP (the pool charges a fee for one-sided withdrawals).
+await sendTransaction(
+  connection,
+  XrplAmmWithdraw.singleAsset(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    amount: const XrplCurrencyAmount.xrp('500000'),
+  ),
+  holder,
+);
+```
+
+Withdrawing everything with `XrplAmmWithdraw.withdrawAll` deletes the
+pool when you are its last liquidity provider. See
+`example/phase5/amm_example.dart` for the full flow.
 
 ## Networks
 
