@@ -142,10 +142,18 @@ class XrplTransactionSerializer {
       (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'LPTokenOut')),
     );
     addIfPresent(
+      'LPTokenIn',
+      XrplFieldDefinitions.lpTokenIn,
+      // Same rule as LPTokenOut: the LP tokens an AMMWithdraw redeems
+      // are an issued currency, never XRP.
+      (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'LPTokenIn')),
+    );
+    addIfPresent(
       'EPrice',
       XrplFieldDefinitions.ePrice,
-      // The maximum price per LP token is expressed in the deposit
-      // asset, which can be either XRP or an issued currency.
+      // The price per LP token is expressed in the pool asset being
+      // deposited or withdrawn, which can be either XRP or an issued
+      // currency.
       (v) => _encodeEitherAmount(v, 'EPrice'),
     );
     addIfPresent(
@@ -204,6 +212,7 @@ class XrplTransactionSerializer {
       'Amount',
       'Amount2',
       'LPTokenOut',
+      'LPTokenIn',
       'EPrice',
       'Account',
       'Destination',
@@ -253,6 +262,8 @@ class XrplTransactionSerializer {
         return XrplTransactionTypeCode.accountSet;
       case 'AMMDeposit':
         return XrplTransactionTypeCode.ammDeposit;
+      case 'AMMWithdraw':
+        return XrplTransactionTypeCode.ammWithdraw;
       default:
         throw XrplCryptoException('Unsupported TransactionType "$name"');
     }
