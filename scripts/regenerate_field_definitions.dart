@@ -38,6 +38,7 @@ const _neededTransactionTypes = [
   'AccountSet',
   'AMMDeposit',
   'AMMWithdraw',
+  'AMMVote',
 ];
 
 // Every field this SDK currently needs across every transaction type
@@ -75,7 +76,7 @@ const _neededFields = [
 // (Phase 4's Payment/TrustSet fields), by decoding the official
 // OfferCreate worked example byte-by-byte (Phase 5's Offer fields),
 // or by reading the official xrpl-py definitions programmatically
-// (Phase 5's AMMCreate, AMMDeposit and AMMWithdraw fields) - used here
+// (Phase 5's AMMCreate, AMMDeposit, AMMWithdraw and AMMVote fields) - used here
 // purely as a sanity check against the live server response, not as
 // the source of truth.
 const _knownGoodTransactionTypeCodes = {
@@ -87,6 +88,7 @@ const _knownGoodTransactionTypeCodes = {
   'AccountSet': 3,
   'AMMDeposit': 36,
   'AMMWithdraw': 37,
+  'AMMVote': 38,
 };
 
 const _knownGoodFieldIdBytes = {
