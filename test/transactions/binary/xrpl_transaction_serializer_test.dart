@@ -983,4 +983,115 @@ void main() {
       );
     });
   });
+
+  group('XrplTransactionSerializer.serialize - AMMVote', () {
+    // Every expected hex below was produced by the official xrpl-py
+    // library's binary codec, not by this SDK, so these tests compare
+    // against an independent implementation. The pool is XRP / TST.
+    const issuer = 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd';
+
+    Map<String, dynamic> vote(Map<String, dynamic> fields) {
+      return {
+        'TransactionType': 'AMMVote',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Asset': {'currency': 'XRP'},
+        'Asset2': {'currency': 'TST', 'issuer': issuer},
+        'Fee': '10',
+        'Sequence': 9,
+        'LastLedgerSequence': 102,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+        ...fields,
+      };
+    }
+
+    test('TradingFee 500 matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        vote({'TradingFee': 500}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200261501f42400000009201b0000006668400000000000000a732'
+          '1ed5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f78'
+          '2911e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa'
+          '8031800000000000000000000000000000000000000000418000000'
+          '0000000000000000005453540000000000f2f97c4301c80d60f8665'
+          '3a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('a TradingFee of 0 is serialized, not omitted (xrpl-py)', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        vote({'TradingFee': 0}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200261500002400000009201b0000006668400000000000000a732'
+          '1ed5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f78'
+          '2911e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa'
+          '8031800000000000000000000000000000000000000000418000000'
+          '0000000000000000005453540000000000f2f97c4301c80d60f8665'
+          '3a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('the maximum TradingFee 1000 matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        vote({'TradingFee': 1000}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200261503e82400000009201b0000006668400000000000000a732'
+          '1ed5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f78'
+          '2911e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa'
+          '8031800000000000000000000000000000000000000000418000000'
+          '0000000000000000005453540000000000f2f97c4301c80d60f8665'
+          '3a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('a pool of two issued assets matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        vote({
+          'Asset': {
+            'currency': 'USD',
+            'issuer': 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
+          },
+          'TradingFee': 300,
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '12002615012c2400000009201b0000006668400000000000000a732'
+          '1ed5f5ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f78'
+          '2911e5e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa'
+          '8031800000000000000000000000055534400000000000a20b3c85f'
+          '482532a9578dbb3950b85ca06594d10418000000000000000000000'
+          '0005453540000000000f2f97c4301c80d60f86653a319aa7f302c70'
+          'b83b',
+        ),
+      );
+    });
+
+    test('throws when TradingFee is a String instead of an int', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMVote',
+          'TradingFee': '500', // should be an int
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
 }
