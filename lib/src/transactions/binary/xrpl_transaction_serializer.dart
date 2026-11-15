@@ -264,6 +264,8 @@ class XrplTransactionSerializer {
         return XrplTransactionTypeCode.ammDeposit;
       case 'AMMWithdraw':
         return XrplTransactionTypeCode.ammWithdraw;
+      case 'AMMVote':
+        return XrplTransactionTypeCode.ammVote;
       default:
         throw XrplCryptoException('Unsupported TransactionType "$name"');
     }

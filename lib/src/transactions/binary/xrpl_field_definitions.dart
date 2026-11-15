@@ -56,8 +56,8 @@ class XrplFieldDefinition {
 /// The binary serialization definitions for every field this SDK
 /// currently needs, to build `XrplPayment`, `XrplTrustSet`,
 /// `XrplOfferCreate`, `XrplOfferCancel`, `XrplAmmCreate`,
-/// `XrplAmmDeposit`, and `XrplAmmWithdraw` transactions in their
-/// canonical binary format for signing.
+/// `XrplAmmDeposit`, `XrplAmmWithdraw`, and `XrplAmmVote` transactions
+/// in their canonical binary format for signing.
 ///
 /// These values are permanent, not configuration: a Field ID is part
 /// of how a transaction's signing hash is calculated, so changing one
@@ -216,10 +216,10 @@ class XrplFieldDefinitions {
     isVLEncoded: false,
   );
 
-  /// Binary definition for the `TradingFee` field - an `AMMCreate`'s
-  /// trading fee, a UInt16 in units of 1/100,000. Confirmed from a
-  /// live `server_definitions` response and cross-checked against the
-  /// official `xrpl-py` definitions.
+  /// Binary definition for the `TradingFee` field - the trading fee an
+  /// `AMMCreate` sets or an `AMMVote` proposes. A UInt16 in units of
+  /// 1/100,000. Confirmed from a live `server_definitions` response and
+  /// cross-checked against the official `xrpl-py` definitions.
   static const tradingFee = XrplFieldDefinition(
     typeCode: 1,
     fieldCode: 5,
@@ -332,4 +332,8 @@ class XrplTransactionTypeCode {
   /// The numeric `TransactionType` value for an `AMMWithdraw`
   /// transaction.
   static const ammWithdraw = 37;
+
+  /// The numeric `TransactionType` value for an `AMMVote`
+  /// transaction.
+  static const ammVote = 38;
 }

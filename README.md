@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.5-dev
+  xrpl_flutter_sdk: ^0.4.6-dev
 ```
 
 ```bash
@@ -326,6 +326,29 @@ await sendTransaction(
 Withdrawing everything with `XrplAmmWithdraw.withdrawAll` deletes the
 pool when you are its last liquidity provider. See
 `example/phase5/amm_example.dart` for the full flow.
+
+#### AMMVote (0.4.6-dev)
+
+Vote on the trading fee of an AMM pool. Only liquidity providers can
+vote, and each vote weighs as much as the share of the pool's LP tokens
+the voter holds.
+
+```dart
+// Propose a 0.3% trading fee (units of 1/100,000; maximum 1000).
+await sendTransaction(
+  connection,
+  XrplAmmVote(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    tradingFee: 300,
+  ),
+  holder,
+);
+```
+
+The pool's fee becomes the average of the latest votes, weighted by LP
+tokens. See `example/phase5/amm_example.dart` for the full flow.
 
 ## Networks
 

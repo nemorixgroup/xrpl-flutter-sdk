@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.5-dev
+  xrpl_flutter_sdk: ^0.4.6-dev
 ```
 
 ```bash
@@ -326,6 +326,30 @@ await sendTransaction(
 Retirar todo con `XrplAmmWithdraw.withdrawAll` elimina el pool cuando
 eres su último proveedor de liquidez. Consulta
 `example/phase5/amm_example.dart` para el flujo completo.
+
+#### AMMVote (0.4.6-dev)
+
+Vota la comisión de trading de un pool AMM. Solo los proveedores de
+liquidez pueden votar, y cada voto pesa según la parte de los tokens LP
+del pool que tenga quien vota.
+
+```dart
+// Propone una comisión de 0.3% (unidades de 1/100,000; máximo 1000).
+await sendTransaction(
+  connection,
+  XrplAmmVote(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    tradingFee: 300,
+  ),
+  holder,
+);
+```
+
+La comisión del pool pasa a ser el promedio de los últimos votos,
+ponderado por tokens LP. Consulta `example/phase5/amm_example.dart` para
+el flujo completo.
 
 ## Redes
 
