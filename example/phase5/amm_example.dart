@@ -2,13 +2,14 @@
 //  - 0.4.3-dev: AMMCreate, amm_info.
 //  - 0.4.4-dev: AMMDeposit.
 //  - 0.4.5-dev: AMMWithdraw.
+//  - 0.4.6-dev: AMMVote.
 //
 // Demonstrates XRPL's native Automated Market Maker: creating a
 // liquidity pool for an asset pair with XrplAmmCreate, reading it back
-// with ammInfo, adding liquidity to it with XrplAmmDeposit, and taking
-// it out with XrplAmmWithdraw. All of them use the same build ->
-// autofill -> sign -> submitAndWait pipeline used throughout Phases 4
-// and 5.
+// with ammInfo, adding liquidity to it with XrplAmmDeposit, taking it
+// out with XrplAmmWithdraw, and voting on its trading fee with
+// XrplAmmVote. All of them use the same build -> autofill -> sign ->
+// submitAndWait pipeline used throughout Phases 4 and 5.
 //
 // Creating a pool needs more setup than any earlier transaction:
 //   1. The token issuer must enable Default Ripple, otherwise the
@@ -20,8 +21,9 @@
 //
 // Fee note: AMMCreate must destroy at least the owner reserve. When
 // no fee is set, autofill reads it from the network (server_state,
-// reserve_inc), so there is nothing to configure here. AMMDeposit and
-// AMMWithdraw, in contrast, pay the normal transaction cost.
+// reserve_inc), so there is nothing to configure here. AMMDeposit,
+// AMMWithdraw and AMMVote, in contrast, pay the normal transaction
+// cost.
 //
 // Deposit note: XrplAmmDeposit has one named constructor per deposit
 // mode (singleAsset, twoAsset, lpToken, oneAssetLpToken, limitLpToken,
@@ -33,6 +35,12 @@
 // singleAsset, twoAsset, oneAssetLpToken, limitLpToken). This file
 // shows lpToken, singleAsset and withdrawAll. Withdrawing everything
 // from a pool deletes it.
+//
+// Vote note: XrplAmmVote has a single form, because AMMVote has no
+// modes. Only liquidity providers can vote, and each vote weighs as
+// much as the share of the pool's LP tokens the voter holds. The pool's
+// trading fee is the average of the latest votes weighted by those
+// shares.
 //
 // Full technical decisions:
 // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-5
@@ -461,6 +469,113 @@ Future<void> withdrawAmmExample() async {
   } on XrplConnectionException {
     print('The pool no longer exists: it was deleted with its last LP.');
   }
+
+  await connection.disconnect();
+}
+
+// Reads the XRP/TST pool and prints its current trading fee, so each
+// vote's effect is visible.
+Future<void> _printTradingFee(
+  XrplConnection connection,
+  XrplWallet issuer,
+  String label,
+) async {
+  final info = await ammInfo(
+    connection,
+    asset: const XrplAsset.xrp(),
+    asset2: XrplAsset.issued(
+      currency: 'TST',
+      issuer: issuer.classicAddress,
+    ),
+    ledgerIndex: 'validated',
+  );
+  print('$label: trading fee ${info.tradingFee} (1/100000 units)');
+}
+
+Future<void> voteAmmExample() async {
+  final connection = XrplConnection(XrplEndpoint.testnet);
+  await connection.connect();
+
+  final accounts = await _prepareTokenHolder(connection);
+  final holder = accounts.holder;
+
+  // Start from a real pool: 5 XRP and 50 TST, at a 0.5% trading fee.
+  // The holder is its only liquidity provider.
+  await sendTransaction(
+    connection,
+    XrplAmmCreate(
+      account: holder.classicAddress,
+      amount: const XrplCurrencyAmount.xrp('5000000'),
+      amount2: XrplCurrencyAmount.issued(
+        currency: 'TST',
+        issuer: accounts.issuer.classicAddress,
+        value: '50',
+      ),
+      tradingFee: 500,
+    ),
+    holder,
+  );
+
+  // The pool is identified by its two assets, in any order.
+  const xrp = XrplAsset.xrp();
+  final tst = XrplAsset.issued(
+    currency: 'TST',
+    issuer: accounts.issuer.classicAddress,
+  );
+
+  await _printTradingFee(connection, accounts.issuer, 'Before');
+
+  // ---- Vote 1: the only provider ----
+  // The holder owns every LP token, so its vote alone decides the
+  // pool's fee. TradingFee is in units of 1/100000, so 300 = 0.3%
+  // (maximum 1000).
+  final first = await sendTransaction(
+    connection,
+    XrplAmmVote(
+      account: holder.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      tradingFee: 300,
+    ),
+    holder,
+  );
+  final firstMeta = first['meta'] as Map<String, dynamic>;
+  print('Holder votes 300: ${firstMeta['TransactionResult']}');
+  // Like AMMDeposit and AMMWithdraw, AMMVote pays the normal cost.
+  print('Fee paid (drops): ${first['Fee']}');
+  await _printTradingFee(connection, accounts.issuer, 'After holder vote');
+
+  // ---- Vote 2: a second provider ----
+  // Only liquidity providers can vote, so the second account first adds
+  // 1 XRP to the pool (see XrplAmmDeposit) and then votes for the
+  // maximum fee. Its vote weighs as much as its share of the LP tokens,
+  // so the pool's fee moves towards 1000 only as far as that share
+  // allows.
+  final provider = await fundTestWallet(connection);
+  print('Second provider: ${provider.classicAddress}');
+  await sendTransaction(
+    connection,
+    XrplAmmDeposit.singleAsset(
+      account: provider.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      amount: const XrplCurrencyAmount.xrp('1000000'),
+    ),
+    provider,
+  );
+  final second = await sendTransaction(
+    connection,
+    XrplAmmVote(
+      account: provider.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      tradingFee: 1000,
+    ),
+    provider,
+  );
+  final secondMeta = second['meta'] as Map<String, dynamic>;
+  print('Second provider votes 1000: ${secondMeta['TransactionResult']}');
+  await _printTradingFee(connection, accounts.issuer, 'After second vote');
 
   await connection.disconnect();
 }

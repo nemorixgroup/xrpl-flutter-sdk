@@ -128,4 +128,7 @@ Future<void> main() async {
 
   print('\n--- 0.4.5-dev: AMMWithdraw ---');
   await withdrawAmmExample();
+
+  print('\n--- 0.4.6-dev: AMMVote ---');
+  await voteAmmExample();
 }
