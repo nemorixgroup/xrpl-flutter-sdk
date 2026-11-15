@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.6-dev
+
+### Added
+- `XrplAmmVote` (AMMVote): vote on the trading fee of an AMM pool. It
+  has a single constructor, because AMMVote has no modes or flags. The
+  pool's assets must differ and `tradingFee` must be between 0 and 1000
+  (`XrplAmmVote.maxTradingFee`), validated before sending.
+- Binary codec support for AMMVote (transaction type 38). No new fields
+  were needed: `Asset`, `Asset2` and `TradingFee` were already defined.
+  The transaction type was checked against the live `server_definitions`
+  and the vectors against xrpl-py.
+- `voteAmmExample` in `example/phase5/amm_example.dart`.
+
+### Tests
+- 23 new tests (489 -> 512): 5 binary codec vectors, 14 model tests and
+  4 Testnet integration tests against a real pool.
+- The integration tests cover a sole provider setting the pool fee, the
+  limits 0 and 1000, a second provider moving the fee by its share of
+  the LP tokens, and an account without LP tokens failing with
+  `tecAMM_INVALID_TOKENS`. `tecAMM_FAILED_VOTE` is not covered, because
+  it needs eight accounts holding more LP tokens than the voter.
+
+### Notes
+- AMMVote pays the normal transaction cost, like AMMDeposit and
+  AMMWithdraw.
+- The pool's vote slots are not exposed by `ammInfo` yet.
+
+### Status
+Phase 5 (DEX & Cross-Currency) is in progress: OfferCreate/OfferCancel,
+path finding, AMMCreate, amm_info, AMMDeposit, AMMWithdraw and AMMVote
+are complete. Not ready for production use.
+
+Next: AMMBid (`0.4.7-dev`).
+
 ## 0.4.5-dev
 
 ### Added
