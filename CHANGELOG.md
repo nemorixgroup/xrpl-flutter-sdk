@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.7-dev
+
+### Added
+- `XrplAmmBid` (AMMBid): bid LP tokens for the auction slot of an AMM
+  pool, which gives a discounted trading fee for 24 hours. It has a
+  single constructor, because AMMBid has no modes or flags, with
+  optional `bidMin`, `bidMax` and `authAccounts` (up to
+  `XrplAmmBid.maxAuthAccounts`, 4, never including the sender). The
+  pool's assets must differ and the bids must be LP tokens (an issued
+  currency, never XRP) and positive, validated before sending.
+- Binary codec support for AMMBid (transaction type 39) and the new
+  fields `BidMin`, `BidMax`, `AuthAccounts` and `AuthAccount`, plus the
+  object and array end markers (`0xE1` and `0xF1`). `AuthAccounts` is
+  the first array of objects the SDK serializes: it has a targeted
+  encoder, not a generic one, and its elements keep the order they were
+  given in. Field definitions were regenerated from the live
+  `server_definitions` and the vectors were checked against xrpl-py.
+- `bidAmmExample` in `example/phase5/amm_example.dart`.
+
+### Tests
+- 46 new tests (512 -> 558): 16 binary codec tests (7 vectors from
+  xrpl-py and 9 error cases), 25 model tests and 5 Testnet integration
+  tests against a real pool.
+- The integration tests cover winning the slot at the minimum price with
+  an authorized account, `bidMin` and `bidMax` together, a second
+  provider outbidding the first (which is refunded), a `bidMax` too low
+  failing with `tecAMM_FAILED`, and an account without LP tokens failing
+  with `tecAMM_INVALID_TOKENS`. Prices after the first 72-minute
+  interval and an expired slot are not covered, because they depend on
+  elapsed time.
+
+### Notes
+- AMMBid pays the normal transaction cost, like AMMDeposit, AMMWithdraw
+  and AMMVote.
+- Observed on Testnet: the winner's discounted fee is one tenth of the
+  pool's trading fee (50 for a fee of 500), the minimum price matches
+  the official formula (LP tokens in circulation times the trading fee
+  divided by 25), and the price paid leaves the LP tokens in circulation.
+- A new pool's auction slot already belongs to its creator, with a price
+  of 0 and the discounted fee active, so the first bid pays the minimum
+  price over that empty bid.  
+- The server accepts `bidMin` and `bidMax` together, so this SDK does not
+  forbid it, although an older version of the official page said so.
+- The auction slot and the vote slots can be read with `ammInfo`
+  (`auctionSlot`, `voteSlots`), since `0.4.3-dev`.
+
+### Status
+Phase 5 (DEX & Cross-Currency) is in progress: OfferCreate/OfferCancel,
+path finding, AMMCreate, amm_info, AMMDeposit, AMMWithdraw, AMMVote and
+AMMBid are complete.  
+Not ready for production use.  
+
+Next: Phase 5 closing audit (`0.5.0-dev`). 
+
 ## 0.4.6-dev
 
 ### Added

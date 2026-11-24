@@ -45,7 +45,7 @@ Cada decisión de implementación detrás de este SDK, incluyendo la elección d
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.6-dev
+  xrpl_flutter_sdk: ^0.4.7-dev
 ```
 
 ```bash
@@ -350,6 +350,39 @@ await sendTransaction(
 La comisión del pool pasa a ser el promedio de los últimos votos,
 ponderado por tokens LP. Consulta `example/phase5/amm_example.dart` para
 el flujo completo.
+
+#### AMMBid (0.4.7-dev)
+
+Tokens LP por el slot de subasta de un pool AMM. Quien gana opera
+contra el pool con una comisión reducida (una décima parte de la normal)
+durante 24 horas, o hasta que alguien lo supere, y puede autorizar hasta
+cuatro cuentas más para compartir esa comisión.
+
+```dart
+final lp = info.lpToken; // obtenido con ammInfo
+
+// Gana el slot pagando como máximo 10 tokens LP. Sin bidMin, quien puja
+// paga el mínimo necesario para ganar.
+await sendTransaction(
+  connection,
+  XrplAmmBid(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    bidMax: XrplCurrencyAmount.issued(
+      currency: lp.currency!,
+      issuer: lp.issuer!,
+      value: '10',
+    ),
+    authAccounts: ['rUnaDireccionAutorizada...'],
+  ),
+  holder,
+);
+```
+
+Solo los proveedores de liquidez pueden pujar. A quien es superado se le
+reembolsa parte de su puja, según cuánto quede de las 24 horas. Consulta
+`example/phase5/amm_example.dart` para el flujo completo.
 
 ## Redes
 
