@@ -56,8 +56,9 @@ class XrplFieldDefinition {
 /// The binary serialization definitions for every field this SDK
 /// currently needs, to build `XrplPayment`, `XrplTrustSet`,
 /// `XrplOfferCreate`, `XrplOfferCancel`, `XrplAmmCreate`,
-/// `XrplAmmDeposit`, `XrplAmmWithdraw`, and `XrplAmmVote` transactions
-/// in their canonical binary format for signing.
+/// `XrplAmmDeposit`, `XrplAmmWithdraw`, `XrplAmmVote`, and
+/// `XrplAmmBid` transactions in their canonical binary format for
+/// signing.
 ///
 /// These values are permanent, not configuration: a Field ID is part
 /// of how a transaction's signing hash is calculated, so changing one
@@ -65,7 +66,7 @@ class XrplFieldDefinition {
 /// transaction and signature on the XRP Ledger - see
 /// `docs-sdk/phase-4/signing/` for the full reasoning.
 /// Adding fields for transaction types this SDK doesn't support yet
-/// (the remaining AMM types) is normal and expected; re-run
+/// is normal and expected; re-run
 /// `scripts/regenerate_field_definitions.dart` and extend this class
 /// when that happens.
 ///
@@ -236,7 +237,8 @@ class XrplFieldDefinitions {
   );
 
   /// Binary definition for the `Asset` field - one of the two assets
-  /// identifying the pool an `AMMDeposit` or `AMMWithdraw` targets.
+  /// identifying the pool an `AMMDeposit`, `AMMWithdraw`, `AMMVote` or
+  /// `AMMBid` targets.
   /// Its type is `Issue` (type code 24), which has no length prefix:
   /// 20 zero bytes for XRP, or a 20-byte currency code followed by a
   /// 20-byte issuer for a token. Confirmed from a live
@@ -250,7 +252,8 @@ class XrplFieldDefinitions {
   );
 
   /// Binary definition for the `Asset2` field - the other asset
-  /// identifying the pool an `AMMDeposit` or `AMMWithdraw` targets.
+  /// identifying the pool an `AMMDeposit`, `AMMWithdraw`, `AMMVote` or
+  /// `AMMBid` targets.
   /// Same `Issue` type as [asset]. Confirmed from a live
   /// `server_definitions` response and cross-checked against the
   /// official `xrpl-py` definitions.
@@ -292,6 +295,78 @@ class XrplFieldDefinitions {
     typeCode: 6,
     fieldCode: 26,
     fieldIdBytes: [0x60, 0x1A],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `BidMin` field - the least an `AMMBid`
+  /// is willing to pay for the auction slot, in the AMM's LP tokens.
+  /// An `Amount`-typed field. Confirmed from a live
+  /// `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
+  static const bidMin = XrplFieldDefinition(
+    typeCode: 6,
+    fieldCode: 12,
+    fieldIdBytes: [0x6C],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `BidMax` field - the most an `AMMBid`
+  /// is willing to pay for the auction slot, in the AMM's LP tokens.
+  /// An `Amount`-typed field. Confirmed from a live
+  /// `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
+  static const bidMax = XrplFieldDefinition(
+    typeCode: 6,
+    fieldCode: 13,
+    fieldIdBytes: [0x6D],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `AuthAccounts` field - the accounts an
+  /// `AMMBid` also authorizes to trade at the discounted fee. Its type
+  /// is `STArray` (type code 15): a sequence of objects that ends with
+  /// [arrayEndMarker]. Confirmed from a live `server_definitions`
+  /// response and cross-checked against the official `xrpl-py`
+  /// definitions.
+  static const authAccounts = XrplFieldDefinition(
+    typeCode: 15,
+    fieldCode: 25,
+    fieldIdBytes: [0xF0, 0x19],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the `AuthAccount` field - the wrapper of one
+  /// element of [authAccounts]. Its type is `STObject` (type code 14):
+  /// a set of fields that ends with [objectEndMarker]. Confirmed from a
+  /// live `server_definitions` response and cross-checked against the
+  /// official `xrpl-py` definitions.
+  static const authAccount = XrplFieldDefinition(
+    typeCode: 14,
+    fieldCode: 27,
+    fieldIdBytes: [0xE0, 0x1B],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the object end marker: the single byte
+  /// (`0xE1`, with no contents) that closes every `STObject`, such as
+  /// each element of [authAccounts]. Confirmed from a live
+  /// `server_definitions` response and from the official binary format
+  /// page.
+  static const objectEndMarker = XrplFieldDefinition(
+    typeCode: 14,
+    fieldCode: 1,
+    fieldIdBytes: [0xE1],
+    isVLEncoded: false,
+  );
+
+  /// Binary definition for the array end marker: the single byte
+  /// (`0xF1`, with no contents) that closes every `STArray`, such as
+  /// [authAccounts]. Confirmed from a live `server_definitions`
+  /// response and from the official binary format page.
+  static const arrayEndMarker = XrplFieldDefinition(
+    typeCode: 15,
+    fieldCode: 1,
+    fieldIdBytes: [0xF1],
     isVLEncoded: false,
   );
 }
@@ -336,4 +411,8 @@ class XrplTransactionTypeCode {
   /// The numeric `TransactionType` value for an `AMMVote`
   /// transaction.
   static const ammVote = 38;
+
+  /// The numeric `TransactionType` value for an `AMMBid`
+  /// transaction.
+  static const ammBid = 39;
 }

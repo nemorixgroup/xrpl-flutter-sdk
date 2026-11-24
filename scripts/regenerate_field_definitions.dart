@@ -39,6 +39,7 @@ const _neededTransactionTypes = [
   'AMMDeposit',
   'AMMWithdraw',
   'AMMVote',
+  'AMMBid',
 ];
 
 // Every field this SDK currently needs across every transaction type
@@ -69,6 +70,12 @@ const _neededFields = [
   'LPTokenOut',
   'EPrice',
   'LPTokenIn',
+  'BidMin',
+  'BidMax',
+  'AuthAccounts',
+  'AuthAccount',
+  'ObjectEndMarker',
+  'ArrayEndMarker',
 ];
 
 // Independently confirmed earlier - either via official documentation
@@ -76,7 +83,8 @@ const _neededFields = [
 // (Phase 4's Payment/TrustSet fields), by decoding the official
 // OfferCreate worked example byte-by-byte (Phase 5's Offer fields),
 // or by reading the official xrpl-py definitions programmatically
-// (Phase 5's AMMCreate, AMMDeposit, AMMWithdraw and AMMVote fields) - used here
+// (Phase 5's AMMCreate, AMMDeposit, AMMWithdraw, AMMVote and AMMBid
+// fields, including the object and array end markers) - used here
 // purely as a sanity check against the live server response, not as
 // the source of truth.
 const _knownGoodTransactionTypeCodes = {
@@ -89,6 +97,7 @@ const _knownGoodTransactionTypeCodes = {
   'AMMDeposit': 36,
   'AMMWithdraw': 37,
   'AMMVote': 38,
+  'AMMBid': 39,
 };
 
 const _knownGoodFieldIdBytes = {
@@ -111,6 +120,12 @@ const _knownGoodFieldIdBytes = {
   'LPTokenOut': [0x60, 0x19],
   'EPrice': [0x60, 0x1B],
   'LPTokenIn': [0x60, 0x1A],
+  'BidMin': [0x6C],
+  'BidMax': [0x6D],
+  'AuthAccounts': [0xF0, 0x19],
+  'AuthAccount': [0xE0, 0x1B],
+  'ObjectEndMarker': [0xE1],
+  'ArrayEndMarker': [0xF1],
 };
 
 void main() async {
