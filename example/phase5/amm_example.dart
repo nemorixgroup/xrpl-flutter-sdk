@@ -3,13 +3,15 @@
 //  - 0.4.4-dev: AMMDeposit.
 //  - 0.4.5-dev: AMMWithdraw.
 //  - 0.4.6-dev: AMMVote.
+//  - 0.4.7-dev: AMMBid.
 //
 // Demonstrates XRPL's native Automated Market Maker: creating a
 // liquidity pool for an asset pair with XrplAmmCreate, reading it back
 // with ammInfo, adding liquidity to it with XrplAmmDeposit, taking it
-// out with XrplAmmWithdraw, and voting on its trading fee with
-// XrplAmmVote. All of them use the same build -> autofill -> sign ->
-// submitAndWait pipeline used throughout Phases 4 and 5.
+// out with XrplAmmWithdraw, voting on its trading fee with
+// XrplAmmVote, and bidding for its auction slot with XrplAmmBid. All of
+// them use the same build -> autofill -> sign -> submitAndWait pipeline
+// used throughout Phases 4 and 5.
 //
 // Creating a pool needs more setup than any earlier transaction:
 //   1. The token issuer must enable Default Ripple, otherwise the
@@ -22,8 +24,8 @@
 // Fee note: AMMCreate must destroy at least the owner reserve. When
 // no fee is set, autofill reads it from the network (server_state,
 // reserve_inc), so there is nothing to configure here. AMMDeposit,
-// AMMWithdraw and AMMVote, in contrast, pay the normal transaction
-// cost.
+// AMMWithdraw, AMMVote and AMMBid, in contrast, pay the normal
+// transaction cost.
 //
 // Deposit note: XrplAmmDeposit has one named constructor per deposit
 // mode (singleAsset, twoAsset, lpToken, oneAssetLpToken, limitLpToken,
@@ -41,6 +43,13 @@
 // much as the share of the pool's LP tokens the voter holds. The pool's
 // trading fee is the average of the latest votes weighted by those
 // shares.
+//
+// Bid note: XrplAmmBid also has a single form. A liquidity provider
+// bids LP tokens for the pool's auction slot; the winner trades against
+// the pool at a discounted fee (one tenth of the normal fee) for 24
+// hours, or until someone outbids it, and can authorize up to four more
+// accounts to share that fee. bidMin and bidMax, both optional, limit
+// what the bidder is willing to pay, in the pool's own LP tokens.
 //
 // Full technical decisions:
 // https://github.com/nemorixgroup/XRPL-Knowledge-Base/tree/main/docs-sdk/phase-5
@@ -576,6 +585,142 @@ Future<void> voteAmmExample() async {
   final secondMeta = second['meta'] as Map<String, dynamic>;
   print('Second provider votes 1000: ${secondMeta['TransactionResult']}');
   await _printTradingFee(connection, accounts.issuer, 'After second vote');
+
+  await connection.disconnect();
+}
+
+// Reads the XRP/TST pool and prints who holds its auction slot, so each
+// bid's effect is visible. Returns the info so the caller can reuse it.
+Future<XrplAmmInfo> _printAuctionSlot(
+  XrplConnection connection,
+  XrplWallet issuer,
+  String label,
+) async {
+  final info = await ammInfo(
+    connection,
+    asset: const XrplAsset.xrp(),
+    asset2: XrplAsset.issued(
+      currency: 'TST',
+      issuer: issuer.classicAddress,
+    ),
+    ledgerIndex: 'validated',
+  );
+  print('$label LP tokens in circulation: ${info.lpToken.value}');
+
+  final slot = info.auctionSlot;
+  if (slot == null) {
+    print('$label auction slot: none');
+    return info;
+  }
+  print('$label slot holder: ${slot.account}');
+  print('$label slot price: ${slot.price.value} LP tokens');
+  print(
+    '$label discounted fee: ${slot.discountedFee} '
+    '(normal fee: ${info.tradingFee})',
+  );
+  print('$label authorized accounts: ${slot.authAccounts}');
+  return info;
+}
+
+Future<void> bidAmmExample() async {
+  final connection = XrplConnection(XrplEndpoint.testnet);
+  await connection.connect();
+
+  final accounts = await _prepareTokenHolder(connection);
+  final holder = accounts.holder;
+
+  // Start from a real pool: 5 XRP and 50 TST, at a 0.5% trading fee.
+  // The holder is its only liquidity provider, so it owns every LP
+  // token.
+  await sendTransaction(
+    connection,
+    XrplAmmCreate(
+      account: holder.classicAddress,
+      amount: const XrplCurrencyAmount.xrp('5000000'),
+      amount2: XrplCurrencyAmount.issued(
+        currency: 'TST',
+        issuer: accounts.issuer.classicAddress,
+        value: '50',
+      ),
+      tradingFee: 500,
+    ),
+    holder,
+  );
+
+  // The pool is identified by its two assets, in any order.
+  const xrp = XrplAsset.xrp();
+  final tst = XrplAsset.issued(
+    currency: 'TST',
+    issuer: accounts.issuer.classicAddress,
+  );
+
+  final before = await _printAuctionSlot(
+    connection,
+    accounts.issuer,
+    'Before any bid',
+  );
+
+  // ---- Bid 1: the minimum price, with an authorized account ----
+  // With no bidMin and no bidMax, the holder pays the minimum needed to
+  // win the slot. The authorized account must exist in the ledger, and
+  // it cannot be the bidder itself. It also trades at the discounted
+  // fee.
+  final authorized = await fundTestWallet(connection);
+  print('Authorized account: ${authorized.classicAddress}');
+  final first = await sendTransaction(
+    connection,
+    XrplAmmBid(
+      account: holder.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      authAccounts: [authorized.classicAddress],
+    ),
+    holder,
+  );
+  final firstMeta = first['meta'] as Map<String, dynamic>;
+  print('Holder bids: ${firstMeta['TransactionResult']}');
+  // Like AMMDeposit, AMMWithdraw and AMMVote, AMMBid pays the normal
+  // transaction cost.
+  print('Fee paid (drops): ${first['Fee']}');
+  await _printAuctionSlot(connection, accounts.issuer, 'After holder bid');
+
+  // ---- Bid 2: a second provider outbids the first ----
+  // Only liquidity providers can bid, so the second account first adds
+  // 1 XRP to the pool (see XrplAmmDeposit). Its bid must beat the
+  // current one, and bidMax caps what it is willing to pay. The LP token
+  // currency and issuer come from ammInfo, never from hand-built codes.
+  // The holder is refunded part of its bid, based on how much of the
+  // 24 hours is left.
+  final provider = await fundTestWallet(connection);
+  print('Second provider: ${provider.classicAddress}');
+  await sendTransaction(
+    connection,
+    XrplAmmDeposit.singleAsset(
+      account: provider.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      amount: const XrplCurrencyAmount.xrp('1000000'),
+    ),
+    provider,
+  );
+  final lp = before.lpToken;
+  final second = await sendTransaction(
+    connection,
+    XrplAmmBid(
+      account: provider.classicAddress,
+      asset: xrp,
+      asset2: tst,
+      bidMax: XrplCurrencyAmount.issued(
+        currency: lp.currency!,
+        issuer: lp.issuer!,
+        value: '100',
+      ),
+    ),
+    provider,
+  );
+  final secondMeta = second['meta'] as Map<String, dynamic>;
+  print('Second provider bids: ${secondMeta['TransactionResult']}');
+  await _printAuctionSlot(connection, accounts.issuer, 'After second bid');
 
   await connection.disconnect();
 }

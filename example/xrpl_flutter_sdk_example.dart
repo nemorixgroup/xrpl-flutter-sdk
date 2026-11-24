@@ -131,4 +131,7 @@ Future<void> main() async {
 
   print('\n--- 0.4.6-dev: AMMVote ---');
   await voteAmmExample();
+
+  print('\n--- 0.4.7-dev: AMMBid ---');
+  await bidAmmExample();
 }
