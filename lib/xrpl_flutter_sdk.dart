@@ -61,6 +61,7 @@ export 'src/transactions/values/xrpl_asset.dart';
 export 'src/transactions/models/xrpl_amm_create.dart';
 export 'src/transactions/xrpl_owner_reserve_cost_transaction.dart';
 export 'src/connection/xrpl_amm_info.dart';
+export 'src/transactions/models/xrpl_amm_bid.dart';
 export 'src/transactions/models/xrpl_amm_deposit.dart';
 export 'src/transactions/models/xrpl_amm_vote.dart';
 export 'src/transactions/models/xrpl_amm_withdraw.dart';

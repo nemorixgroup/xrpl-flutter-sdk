@@ -149,6 +149,18 @@ class XrplTransactionSerializer {
       (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'LPTokenIn')),
     );
     addIfPresent(
+      'BidMin',
+      XrplFieldDefinitions.bidMin,
+      // Same rule as LPTokenOut: an AMMBid is paid in the AMM's LP
+      // tokens, an issued currency, never XRP.
+      (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'BidMin')),
+    );
+    addIfPresent(
+      'BidMax',
+      XrplFieldDefinitions.bidMax,
+      (v) => _encodeIssuedCurrencyFromMap(_asMap(v, 'BidMax')),
+    );
+    addIfPresent(
       'EPrice',
       XrplFieldDefinitions.ePrice,
       // The price per LP token is expressed in the pool asset being
@@ -165,6 +177,11 @@ class XrplTransactionSerializer {
       'Destination',
       XrplFieldDefinitions.destination,
       (v) => XrplBinaryPrimitives.encodeAccountId(_asString(v, 'Destination')),
+    );
+    addIfPresent(
+      'AuthAccounts',
+      XrplFieldDefinitions.authAccounts,
+      _encodeAuthAccounts,
     );
     addIfPresent(
       'LimitAmount',
@@ -213,9 +230,12 @@ class XrplTransactionSerializer {
       'Amount2',
       'LPTokenOut',
       'LPTokenIn',
+      'BidMin',
+      'BidMax',
       'EPrice',
       'Account',
       'Destination',
+      'AuthAccounts',
       'LimitAmount',
       'TakerGets',
       'TakerPays',
@@ -266,6 +286,8 @@ class XrplTransactionSerializer {
         return XrplTransactionTypeCode.ammWithdraw;
       case 'AMMVote':
         return XrplTransactionTypeCode.ammVote;
+      case 'AMMBid':
+        return XrplTransactionTypeCode.ammBid;
       default:
         throw XrplCryptoException('Unsupported TransactionType "$name"');
     }
@@ -306,6 +328,58 @@ class XrplTransactionSerializer {
       '$fieldName must be a String (XRP drops) or a Map<String, dynamic> '
       '(issued currency), got ${value.runtimeType}',
     );
+  }
+
+  /// Encodes the `AuthAccounts` array of an `AMMBid`, from the shape
+  /// `XrplAmmBid.toJson()` produces: a list of
+  /// `{'AuthAccount': {'Account': 'r...'}}` Maps.
+  ///
+  /// Per the official binary format, each element is written as the
+  /// `AuthAccount` object's Field ID, then its members (here only
+  /// `Account`), then the object end marker (`0xE1`); the whole array
+  /// ends with the array end marker (`0xF1`). Unlike the members of an
+  /// object, array elements are NOT re-sorted: they keep the order
+  /// they were given in.
+  ///
+  /// This is deliberately a targeted encoder, not a generic
+  /// `STObject`/`STArray` codec: `AuthAccounts` is the only array
+  /// this SDK serializes, and its elements only ever hold `Account`.
+  /// A general codec will be added when a later phase needs it.
+  static Uint8List _encodeAuthAccounts(Object? value) {
+    if (value is! List) {
+      throw XrplCryptoException(
+        'AuthAccounts must be a List, got ${value.runtimeType}',
+      );
+    }
+    final result = <int>[];
+    for (var i = 0; i < value.length; i++) {
+      final name = 'AuthAccounts[$i]';
+      final wrapper = _asMap(value[i], name);
+      if (wrapper.length != 1 || !wrapper.containsKey('AuthAccount')) {
+        throw XrplCryptoException(
+          '$name must have exactly one key, "AuthAccount", got '
+          '${wrapper.keys.toList()}',
+        );
+      }
+      final inner = _asMap(wrapper['AuthAccount'], '$name.AuthAccount');
+      if (inner.length != 1 || !inner.containsKey('Account')) {
+        throw XrplCryptoException(
+          '$name.AuthAccount must have exactly one key, "Account", got '
+          '${inner.keys.toList()}',
+        );
+      }
+      result
+        ..addAll(XrplFieldDefinitions.authAccount.fieldIdBytes)
+        ..addAll(XrplFieldDefinitions.account.fieldIdBytes)
+        ..addAll(
+          XrplBinaryPrimitives.encodeAccountId(
+            _asString(inner['Account'], '$name.AuthAccount.Account'),
+          ),
+        )
+        ..addAll(XrplFieldDefinitions.objectEndMarker.fieldIdBytes);
+    }
+    result.addAll(XrplFieldDefinitions.arrayEndMarker.fieldIdBytes);
+    return Uint8List.fromList(result);
   }
 
   static String _asString(Object? value, String fieldName) {

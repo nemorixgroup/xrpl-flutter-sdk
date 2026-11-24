@@ -1094,4 +1094,327 @@ void main() {
       );
     });
   });
+
+  group('XrplTransactionSerializer.serialize - AMMBid', () {
+    // Every expected hex below was produced by the official xrpl-py
+    // library's binary codec, not by this SDK, so these tests compare
+    // against an independent implementation. The pool is XRP / TST
+    // unless a test says otherwise.
+    const issuer = 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd';
+    const account1 = 'rMBzp8CgpE441cp5PVyA9rpVV7oT8hP3ys';
+    const account2 = 'rDTXLQ7ZKZVKz33zJbHjgVShjsBnqMBhmN';
+    const account3 = 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B';
+    const account4 = 'rP9jPyP5kyvFRb6ZiRghAGw5u8SGAmU4bd';
+
+    // The LP token an AMMBid pays with: a 40-character hex currency
+    // code issued by the AMM account, as observed on the real Testnet.
+    Map<String, dynamic> lpToken(String value) {
+      return {
+        'currency': '039C99CD9AB0B70B32ECDA51EAAE471625608EA2',
+        'issuer': 'rNJSNwbggDhEBwhRXNeyeY7G2Xy3gxLjYH',
+        'value': value,
+      };
+    }
+
+    Map<String, dynamic> authAccounts(List<String> accounts) {
+      return {
+        'AuthAccounts': [
+          for (final account in accounts)
+            {
+              'AuthAccount': {'Account': account},
+            },
+        ],
+      };
+    }
+
+    Map<String, dynamic> bid(Map<String, dynamic> fields) {
+      return {
+        'TransactionType': 'AMMBid',
+        'Account': 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe',
+        'Asset': {'currency': 'XRP'},
+        'Asset2': {'currency': 'TST', 'issuer': issuer},
+        'Fee': '10',
+        'Sequence': 9,
+        'LastLedgerSequence': 102,
+        'SigningPubKey': 'ED5F5AC8B98974A3CA843326D9B88CEBD0560177'
+            'B973EE0B149F782911E5E8A9C1',
+        ...fields,
+      };
+    }
+
+    test('BidMin only matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid({'BidMin': lpToken('5')}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a6cd491c37'
+          '937e08000039c99cd9ab0b70b32ecda51eaae471625608ea291e5c3'
+          'd526d6af03e629efbc0a095613116ea1007321ed5f5ac8b98974a3c'
+          'a843326d9b88cebd0560177b973ee0b149f782911e5e8a9c18114f6'
+          '67b0ca50cc7709a220b0561b85e53a48461fa803180000000000000'
+          '0000000000000000000000000000418000000000000000000000000'
+          '5453540000000000f2f97c4301c80d60f86653a319aa7f302c70b83'
+          'b',
+        ),
+      );
+    });
+
+    test('BidMax only matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid({'BidMax': lpToken('100')}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a6dd5038d7'
+          'ea4c68000039c99cd9ab0b70b32ecda51eaae471625608ea291e5c3'
+          'd526d6af03e629efbc0a095613116ea1007321ed5f5ac8b98974a3c'
+          'a843326d9b88cebd0560177b973ee0b149f782911e5e8a9c18114f6'
+          '67b0ca50cc7709a220b0561b85e53a48461fa803180000000000000'
+          '0000000000000000000000000000418000000000000000000000000'
+          '5453540000000000f2f97c4301c80d60f86653a319aa7f302c70b83'
+          'b',
+        ),
+      );
+    });
+
+    test('BidMin and BidMax together match xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid({'BidMin': lpToken('5'), 'BidMax': lpToken('100')}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a6cd491c37'
+          '937e08000039c99cd9ab0b70b32ecda51eaae471625608ea291e5c3'
+          'd526d6af03e629efbc0a095613116ea1006dd5038d7ea4c68000039'
+          'c99cd9ab0b70b32ecda51eaae471625608ea291e5c3d526d6af03e6'
+          '29efbc0a095613116ea1007321ed5f5ac8b98974a3ca843326d9b88'
+          'cebd0560177b973ee0b149f782911e5e8a9c18114f667b0ca50cc77'
+          '09a220b0561b85e53a48461fa803180000000000000000000000000'
+          '0000000000000000418000000000000000000000000545354000000'
+          '0000f2f97c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('one AuthAccount matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid(authAccounts([account1])),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a7321ed5f5'
+          'ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911e5'
+          'e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa8f019e'
+          '01b8114dd76483facdee26e60d8a586bb58d09f27045c46e1f10318'
+          '0000000000000000000000000000000000000000041800000000000'
+          '00000000000005453540000000000f2f97c4301c80d60f86653a319'
+          'aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'two AuthAccounts keep the order they were given in, matching '
+        'xrpl-py byte-for-byte', () {
+      // account1 encodes to bytes starting 0xdd and account2 to bytes
+      // starting 0x88, so this order is NOT ascending: the array must
+      // not be re-sorted the way the members of an object are.
+      final serialized = XrplTransactionSerializer.serialize(
+        bid(authAccounts([account1, account2])),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a7321ed5f5'
+          'ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911e5'
+          'e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa8f019e'
+          '01b8114dd76483facdee26e60d8a586bb58d09f27045c46e1e01b81'
+          '1488a5a57c829f40f25ea83385bbde6c3d8b4ca082e1f1031800000'
+          '0000000000000000000000000000000000004180000000000000000'
+          '000000005453540000000000f2f97c4301c80d60f86653a319aa7f3'
+          '02c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'four AuthAccounts (the maximum) with BidMax match xrpl-py '
+        'byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid({
+          'BidMax': lpToken('100'),
+          ...authAccounts([account1, account2, account3, account4]),
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a6dd5038d7'
+          'ea4c68000039c99cd9ab0b70b32ecda51eaae471625608ea291e5c3'
+          'd526d6af03e629efbc0a095613116ea1007321ed5f5ac8b98974a3c'
+          'a843326d9b88cebd0560177b973ee0b149f782911e5e8a9c18114f6'
+          '67b0ca50cc7709a220b0561b85e53a48461fa8f019e01b8114dd764'
+          '83facdee26e60d8a586bb58d09f27045c46e1e01b811488a5a57c82'
+          '9f40f25ea83385bbde6c3d8b4ca082e1e01b81140a20b3c85f48253'
+          '2a9578dbb3950b85ca06594d1e1e01b8114f2f97c4301c80d60f866'
+          '53a319aa7f302c70b83be1f10318000000000000000000000000000'
+          '0000000000000041800000000000000000000000054535400000000'
+          '00f2f97c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('an empty AuthAccounts is just the array markers (xrpl-py)', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid({'AuthAccounts': <Map<String, dynamic>>[]}),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a7321ed5f5'
+          'ac8b98974a3ca843326d9b88cebd0560177b973ee0b149f782911e5'
+          'e8a9c18114f667b0ca50cc7709a220b0561b85e53a48461fa8f019f'
+          '1031800000000000000000000000000000000000000000418000000'
+          '0000000000000000005453540000000000f2f97c4301c80d60f8665'
+          '3a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test(
+        'a pool of two issued assets with BidMin and an AuthAccount '
+        'matches xrpl-py byte-for-byte', () {
+      final serialized = XrplTransactionSerializer.serialize(
+        bid({
+          'Asset': {'currency': 'USD', 'issuer': account3},
+          'BidMin': lpToken('2.5'),
+          ...authAccounts([account1]),
+        }),
+      );
+
+      expect(
+        serialized,
+        _hexToBytes(
+          '1200272400000009201b0000006668400000000000000a6cd488e1b'
+          'c9bf04000039c99cd9ab0b70b32ecda51eaae471625608ea291e5c3'
+          'd526d6af03e629efbc0a095613116ea1007321ed5f5ac8b98974a3c'
+          'a843326d9b88cebd0560177b973ee0b149f782911e5e8a9c18114f6'
+          '67b0ca50cc7709a220b0561b85e53a48461fa8f019e01b8114dd764'
+          '83facdee26e60d8a586bb58d09f27045c46e1f10318000000000000'
+          '00000000000055534400000000000a20b3c85f482532a9578dbb395'
+          '0b85ca06594d1041800000000000000000000000054535400000000'
+          '00f2f97c4301c80d60f86653a319aa7f302c70b83b',
+        ),
+      );
+    });
+
+    test('throws when BidMin is a String (LP tokens are never XRP)', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'BidMin': '100', // should be a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when BidMax has no issuer', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'BidMax': {
+            'currency': '039C99CD9AB0B70B32ECDA51EAAE471625608EA2',
+            'value': '100',
+          },
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when AuthAccounts is not a List', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'AuthAccounts': account1, // should be a List
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when an AuthAccounts element is not a Map', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'AuthAccounts': [account1], // should be wrapped in a Map
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when an AuthAccounts element lacks the AuthAccount key', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'AuthAccounts': [
+            {'Account': account1},
+          ],
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when an AuthAccount holds more than the Account key', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'AuthAccounts': [
+            {
+              'AuthAccount': {'Account': account1, 'Extra': 'value'},
+            },
+          ],
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('throws when an AuthAccount Account is not a String', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'AuthAccounts': [
+            {
+              'AuthAccount': {'Account': 12345},
+            },
+          ],
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+
+    test('propagates an invalid address error from an AuthAccount', () {
+      expect(
+        () => XrplTransactionSerializer.serialize({
+          'TransactionType': 'AMMBid',
+          'AuthAccounts': [
+            {
+              'AuthAccount': {'Account': 'not-a-valid-address'},
+            },
+          ],
+        }),
+        throwsA(isA<XrplCryptoException>()),
+      );
+    });
+  });
 }

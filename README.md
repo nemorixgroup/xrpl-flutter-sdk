@@ -47,7 +47,7 @@ documented in [docs-sdk/](https://github.com/nemorixgroup/XRPL-Knowledge-Base/tr
 ```yaml
 # pubspec.yaml
 dependencies:
-  xrpl_flutter_sdk: ^0.4.6-dev
+  xrpl_flutter_sdk: ^0.4.7-dev
 ```
 
 ```bash
@@ -349,6 +349,39 @@ await sendTransaction(
 
 The pool's fee becomes the average of the latest votes, weighted by LP
 tokens. See `example/phase5/amm_example.dart` for the full flow.
+
+#### AMMBid (0.4.7-dev)
+
+Bid LP tokens for the auction slot of an AMM pool. The winner trades
+against the pool at a discounted fee (one tenth of the normal fee) for
+24 hours, or until someone outbids it, and can authorize up to four more
+accounts to share that fee.
+
+```dart
+final lp = info.lpToken; // from ammInfo
+
+// Win the slot paying at most 10 LP tokens. With no bidMin, the bidder
+// pays the minimum needed to win.
+await sendTransaction(
+  connection,
+  XrplAmmBid(
+    account: holder.classicAddress,
+    asset: const XrplAsset.xrp(),
+    asset2: tst,
+    bidMax: XrplCurrencyAmount.issued(
+      currency: lp.currency!,
+      issuer: lp.issuer!,
+      value: '10',
+    ),
+    authAccounts: ['rSomeAuthorizedAddress...'],
+  ),
+  holder,
+);
+```
+
+Only liquidity providers can bid. Someone who is outbid is refunded part
+of the bid, based on how much of the 24 hours is left. See
+`example/phase5/amm_example.dart` for the full flow.
 
 ## Networks
 
